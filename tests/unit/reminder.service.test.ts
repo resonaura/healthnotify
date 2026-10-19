@@ -102,4 +102,31 @@ describe("ReminderService Unit", () => {
     const defDeleted = await service.getReminder(def.id);
     expect(defDeleted?.activeStatus).toBe("archived");
   });
+
+  it("updates title, times, and destinations via updateReminder", async () => {
+    const def = await service.createReminder(
+      {
+        title: "Initial Title",
+        targetUserIds: [915156343],
+        destinationChatId: 915156343,
+        scheduleType: "daily",
+        timesOfDay: ["08:00"],
+        startDate: "2026-10-19",
+      },
+      359079621,
+    );
+
+    const updated = await service.updateReminder(
+      def.id,
+      {
+        title: "Updated Title",
+        timesOfDay: ["08:00", "20:00"],
+      },
+      359079621,
+    );
+
+    expect(updated).not.toBeNull();
+    expect(updated?.title).toBe("Updated Title");
+    expect(updated?.getTimesOfDay()).toEqual(["08:00", "20:00"]);
+  });
 });

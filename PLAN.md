@@ -341,6 +341,33 @@ _Goal: Resolve code audit findings, harden occurrence state transitions, configu
 
 ---
 
+### Phase 11: Production Hardening Sprint (Atomicity, Multi-Recipient, Inline Freshness, Full Management)
+
+_Goal: Resolve final sprint audit points: transactional atomicity for events, message ID freshness check, multi-recipient independent DM dispatch, full reminder CRUD, Telegram interval configuration, and CJS-free declarative PM2 JSON._
+
+- [x] **Task 11.1**: Transactional Atomicity for Callback Actions & History.
+  - _DoD_: Accept optional `EntityManager` in `HistoryService.logEvent` and pass `tx` inside `OccurrenceService.handleUserAction` transaction.
+  - _Status_: `VERIFIED`
+  - _Evidence_: Tested in `tests/integration/edge-cases.test.ts`.
+- [x] **Task 11.2**: Inline Message Freshness Guard.
+  - _DoD_: Validate `sourceMessageId === occ.activeMessageId` on callback query to reject clicks from obsolete notifications after auto-repeats or snoozes.
+  - _Status_: `VERIFIED`
+  - _Evidence_: Tested in `tests/integration/edge-cases.test.ts` (rejection of stale message ID with `ConflictError`).
+- [x] **Task 11.3**: Multiple Recipients & Independent Delivery.
+  - _DoD_: Support multiple user IDs in wizard, independent destination routing (individual recipient DM vs shared group chat), and independent occurrences.
+  - _Status_: `VERIFIED`
+  - _Evidence_: Tested in `tests/integration/edge-cases.test.ts` (independent DM chat ID delivery for multiple recipients).
+- [x] **Task 11.4**: Full Reminder Management & Interval Controls via Telegram.
+  - _DoD_: Interactive `RemindersMenu` (detail view, title editing, times editing, pausing, archiving) and `SettingsMenu` (snooze/repeat interval preset rotation).
+  - _Status_: `VERIFIED`
+  - _Evidence_: Tested in `tests/unit/menus.test.ts` and `tests/unit/reminder.service.test.ts`.
+- [x] **Task 11.5**: Declarative Zero-CJS PM2 JSON Configuration.
+  - _DoD_: Migrate `ecosystem.config.cjs` to declarative `ecosystem.config.json` with 0 CommonJS dependencies.
+  - _Status_: `VERIFIED`
+  - _Evidence_: `ecosystem.config.json` created, validated, deployed.
+
+---
+
 ## 6. Acceptance Criteria Checklist (AC-01 to AC-30)
 
 | ID        | Criteria Description                                          |   Status   | Evidence                                                                      |

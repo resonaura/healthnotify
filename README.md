@@ -215,13 +215,13 @@ npm run build
 
 ## Production Deployment & PM2 Operations
 
-HealthNotify includes a PM2 configuration (`ecosystem.config.cjs`) configured for high availability, auto-restart, memory capping, and graceful shutdown.
+HealthNotify includes a declarative PM2 JSON configuration (`ecosystem.config.json`) configured for high availability, auto-restart, memory capping, and graceful shutdown with zero CommonJS dependencies.
 
 ### 1. PM2 Process Management
 
 ```sh
 # Start the bot under PM2 supervision
-pm2 start ecosystem.config.cjs
+pm2 start ecosystem.config.json
 
 # Persist active processes across server reboots
 pm2 save

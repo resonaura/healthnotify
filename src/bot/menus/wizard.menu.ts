@@ -1,5 +1,7 @@
+import type { Repository } from "typeorm";
 import type { Locale } from "../../i18n/index.js";
 import { t } from "../../i18n/index.js";
+import type { RegisteredChat } from "../../persistence/entities/registered-chat.entity.js";
 import type {
   ReminderCategory,
   ScheduleType,
@@ -43,6 +45,7 @@ export class WizardMenu extends Menu {
   constructor(
     private readonly settings: SettingsStore,
     private readonly reminderService: ReminderService,
+    private readonly chatRepo: Repository<RegisteredChat>,
     private readonly defaultFatherId: number | null,
     private readonly defaultGroupId: number | null,
     private readonly defaultTimezone: string,
@@ -63,48 +66,107 @@ export class WizardMenu extends Menu {
     if (draft.step === "title") {
       this.buttons = [
         [
-          new Button("🩺 Измерить артериальное давление", (act) =>
-            this.handleTitle(act, "Измерить артериальное давление"),
+          new Button(
+            ctx.lang === "en" ? "🩺 Measure Blood Pressure" : "🩺 Измерить артериальное давление",
+            (act) =>
+              this.handleTitle(
+                act,
+                ctx.lang === "en" ? "Measure Blood Pressure" : "Измерить артериальное давление",
+              ),
           ),
-          new Button("💊 Принять лекарство", (act) => this.handleTitle(act, "Принять лекарство")),
+          new Button(ctx.lang === "en" ? "💊 Take Medication" : "💊 Принять лекарство", (act) =>
+            this.handleTitle(act, ctx.lang === "en" ? "Take Medication" : "Принять лекарство"),
+          ),
         ],
         [cancelBtn],
       ];
     } else if (draft.step === "description") {
       this.buttons = [
-        [new Button("Пропустить описание (-)", (act) => this.handleDescription(act, "-"))],
+        [
+          new Button(
+            ctx.lang === "en" ? "Skip description (-)" : "Пропустить описание (-)",
+            (act) => this.handleDescription(act, "-"),
+          ),
+        ],
         [cancelBtn],
       ];
     } else if (draft.step === "category") {
       this.buttons = [
         [
-          new Button("🩺 Измерения", (act) => this.handleCategory(act, "measurement")),
-          new Button("💊 Лекарства", (act) => this.handleCategory(act, "medication")),
+          new Button(ctx.lang === "en" ? "🩺 Measurements" : "🩺 Измерения", (act) =>
+            this.handleCategory(act, "measurement"),
+          ),
+          new Button(ctx.lang === "en" ? "💊 Medication" : "💊 Лекарства", (act) =>
+            this.handleCategory(act, "medication"),
+          ),
         ],
         [
-          new Button("🏥 Процедура", (act) => this.handleCategory(act, "procedure")),
-          new Button("🏃 Упражнения", (act) => this.handleCategory(act, "exercise")),
+          new Button(ctx.lang === "en" ? "🏥 Procedure" : "🏥 Процедура", (act) =>
+            this.handleCategory(act, "procedure"),
+          ),
+          new Button(ctx.lang === "en" ? "🏃 Exercise" : "🏃 Упражнения", (act) =>
+            this.handleCategory(act, "exercise"),
+          ),
         ],
         [cancelBtn],
       ];
     } else if (draft.step === "recipient") {
-      const row: Button[] = [];
+      const row1: Button[] = [];
       if (this.defaultFatherId) {
-        row.push(
-          new Button(`👨 Отец (${this.defaultFatherId})`, (act) =>
-            this.handleRecipient(act, String(this.defaultFatherId)),
+        row1.push(
+          new Button(
+            ctx.lang === "en"
+              ? `👨 Father (${this.defaultFatherId})`
+              : `👨 Отец (${this.defaultFatherId})`,
+            (act) => this.handleRecipient(act, [this.defaultFatherId!]),
           ),
         );
       }
-      row.push(new Button("👤 Себе", (act) => this.handleRecipient(act, String(act.userId))));
-      this.buttons = [row, [cancelBtn]];
-    } else if (draft.step === "destination") {
-      const row: Button[] = [];
-      if (this.defaultGroupId) {
-        row.push(new Button("👨‍👩‍👧 Семейная группа", (act) => this.handleDestination(act, "group")));
+      row1.push(
+        new Button(ctx.lang === "en" ? "👤 Myself" : "👤 Себе", (act) =>
+          this.handleRecipient(act, [act.userId]),
+        ),
+      );
+
+      const row2: Button[] = [];
+      if (this.defaultFatherId) {
+        row2.push(
+          new Button(t(ctx.lang, "btn_both_father_and_me"), (act) =>
+            this.handleRecipient(act, [this.defaultFatherId!, act.userId]),
+          ),
+        );
       }
-      row.push(new Button("💬 Личные сообщения (ЛС)", (act) => this.handleDestination(act, "dm")));
-      this.buttons = [row, [cancelBtn]];
+
+      this.buttons = [row1, ...(row2.length > 0 ? [row2] : []), [cancelBtn]];
+    } else if (draft.step === "destination") {
+      const rows: Button[][] = [];
+      rows.push([
+        new Button(t(ctx.lang, "btn_to_dm_each"), (act) => this.handleDestination(act, "dm", 0)),
+      ]);
+
+      const groupRow: Button[] = [];
+      if (this.defaultGroupId) {
+        groupRow.push(
+          new Button(ctx.lang === "en" ? "👨‍👩‍👧 Family Group" : "👨‍👩‍👧 Семейная группа", (act) =>
+            this.handleDestination(act, "group", this.defaultGroupId!),
+          ),
+        );
+      }
+
+      const chats = await this.chatRepo.find({ order: { createdAt: "DESC" }, take: 4 });
+      for (const chat of chats) {
+        if (chat.id !== this.defaultGroupId) {
+          groupRow.push(
+            new Button(`💬 ${chat.title}`, (act) => this.handleDestination(act, "group", chat.id)),
+          );
+        }
+      }
+
+      if (groupRow.length > 0) {
+        rows.push(groupRow.slice(0, 2));
+      }
+      rows.push([cancelBtn]);
+      this.buttons = rows;
     } else if (draft.step === "timezone") {
       this.buttons = [
         [
@@ -117,24 +179,57 @@ export class WizardMenu extends Menu {
       ];
     } else if (draft.step === "schedule_type") {
       this.buttons = [
-        [new Button("📅 Каждый день", (act) => this.handleScheduleType(act, "daily"))],
-        [new Button("💼 По будням (Пн-Пт)", (act) => this.handleScheduleType(act, "weekdays"))],
-        [new Button("🎯 Однократно", (act) => this.handleScheduleType(act, "once"))],
+        [
+          new Button(ctx.lang === "en" ? "📅 Daily (Every day)" : "📅 Каждый день", (act) =>
+            this.handleScheduleType(act, "daily"),
+          ),
+        ],
+        [
+          new Button(ctx.lang === "en" ? "💼 Weekdays (Mon-Fri)" : "💼 По будням (Пн-Пт)", (act) =>
+            this.handleScheduleType(act, "weekdays"),
+          ),
+        ],
+        [
+          new Button(ctx.lang === "en" ? "🎯 Once" : "🎯 Однократно", (act) =>
+            this.handleScheduleType(act, "once"),
+          ),
+        ],
         [cancelBtn],
       ];
     } else if (draft.step === "times") {
       this.buttons = [
-        [new Button("06:00, 20:00 (утро и вечер)", (act) => this.handleTimes(act, "06:00, 20:00"))],
+        [
+          new Button(
+            ctx.lang === "en" ? "06:00, 20:00 (morning & evening)" : "06:00, 20:00 (утро и вечер)",
+            (act) => this.handleTimes(act, "06:00, 20:00"),
+          ),
+        ],
         [new Button("08:00, 14:00, 20:00", (act) => this.handleTimes(act, "08:00, 14:00, 20:00"))],
         [new Button("09:00", (act) => this.handleTimes(act, "09:00"))],
         [cancelBtn],
       ];
     } else if (draft.step === "duration") {
       this.buttons = [
-        [new Button("14 дней (2 недели)", (act) => this.handleDuration(act, "14"))],
-        [new Button("7 дней (1 неделя)", (act) => this.handleDuration(act, "7"))],
-        [new Button("30 дней (месяц)", (act) => this.handleDuration(act, "30"))],
-        [new Button("Бессрочно", (act) => this.handleDuration(act, "forever"))],
+        [
+          new Button(ctx.lang === "en" ? "14 days (2 weeks)" : "14 дней (2 недели)", (act) =>
+            this.handleDuration(act, "14"),
+          ),
+        ],
+        [
+          new Button(ctx.lang === "en" ? "7 days (1 week)" : "7 дней (1 неделя)", (act) =>
+            this.handleDuration(act, "7"),
+          ),
+        ],
+        [
+          new Button(ctx.lang === "en" ? "30 days (1 month)" : "30 дней (месяц)", (act) =>
+            this.handleDuration(act, "30"),
+          ),
+        ],
+        [
+          new Button(ctx.lang === "en" ? "Indefinite" : "Бессрочно", (act) =>
+            this.handleDuration(act, "forever"),
+          ),
+        ],
         [cancelBtn],
       ];
     } else if (draft.step === "confirm") {
@@ -188,9 +283,19 @@ export class WizardMenu extends Menu {
       return true;
     }
     if (draft.step === "recipient") {
-      const id = Number(trimmed.replace(/\D/gu, ""));
-      if (id > 0) {
-        await this.handleRecipient(ctx, String(id));
+      const ids = trimmed
+        .split(/[\s,]+/u)
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isInteger(n) && n > 0);
+      if (ids.length > 0) {
+        await this.handleRecipient(ctx, ids);
+        return true;
+      }
+    }
+    if (draft.step === "destination") {
+      const parsed = Number(trimmed.replace(/[^\d-]/gu, ""));
+      if (parsed !== 0) {
+        await this.handleDestination(ctx, "group", parsed);
         return true;
       }
     }
@@ -230,23 +335,23 @@ export class WizardMenu extends Menu {
     await ctx.navigateTo(this.name);
   }
 
-  private async handleRecipient(ctx: MenuActionContext, recipientStr: string): Promise<void> {
-    const id = Number(recipientStr);
-    if (!id || id <= 0) return;
+  private async handleRecipient(ctx: MenuActionContext, userIds: number[]): Promise<void> {
+    if (!userIds || userIds.length === 0) return;
     const draft = await this.getOrCreateDraft(ctx.userId);
-    draft.targetUserIds = [id];
+    draft.targetUserIds = userIds;
     draft.step = "destination";
     await this.settings.setWizardDraft(ctx.userId, draft);
     await ctx.navigateTo(this.name);
   }
 
-  private async handleDestination(ctx: MenuActionContext, type: "dm" | "group"): Promise<void> {
+  private async handleDestination(
+    ctx: MenuActionContext,
+    type: "dm" | "group",
+    destinationChatId: number,
+  ): Promise<void> {
     const draft = await this.getOrCreateDraft(ctx.userId);
     draft.destinationType = type;
-    draft.destinationChatId =
-      type === "group" && this.defaultGroupId
-        ? this.defaultGroupId
-        : (draft.targetUserIds?.[0] ?? ctx.userId);
+    draft.destinationChatId = destinationChatId;
     draft.step = "timezone";
     await this.settings.setWizardDraft(ctx.userId, draft);
     await ctx.navigateTo(this.name);
@@ -277,7 +382,9 @@ export class WizardMenu extends Menu {
 
     if (times.length === 0) {
       await ctx.rawCtx.reply(
-        "⚠️ Неверный формат времени. Введите время в формате HH:mm, например «06:00, 20:00».",
+        ctx.lang === "en"
+          ? "⚠️ Invalid time format. Enter times in HH:mm format, e.g. '06:00, 20:00'."
+          : "⚠️ Неверный формат времени. Введите время в формате HH:mm, например «06:00, 20:00».",
       );
       return;
     }
@@ -294,7 +401,11 @@ export class WizardMenu extends Menu {
     const today = getTodayDateInZone(draft.timezone || this.defaultTimezone);
     draft.startDate = today;
 
-    if (durationStr === "forever" || durationStr.toLowerCase().includes("бессрочно")) {
+    if (
+      durationStr === "forever" ||
+      durationStr.toLowerCase().includes("бессрочно") ||
+      durationStr.toLowerCase().includes("indefinite")
+    ) {
       draft.endDate = null;
     } else {
       const days = Number(durationStr.replace(/\D/gu, ""));
@@ -314,20 +425,28 @@ export class WizardMenu extends Menu {
     const draft = await this.getOrCreateDraft(ctx.userId);
     if (!draft.title || !draft.targetUserIds || !draft.timesOfDay) return;
 
+    const customSnoozeRaw = await this.settings.get("app_snooze_intervals");
+    const customSnooze = customSnoozeRaw ? (JSON.parse(customSnoozeRaw) as number[]) : undefined;
+
+    const customRepeatRaw = await this.settings.get("app_repeat_intervals");
+    const customRepeat = customRepeatRaw ? (JSON.parse(customRepeatRaw) as number[]) : undefined;
+
     await this.reminderService.createReminder(
       {
         title: draft.title,
         description: draft.description,
         category: draft.category ?? "measurement",
         targetUserIds: draft.targetUserIds,
-        destinationChatId: draft.destinationChatId ?? ctx.chatId,
-        destinationType: draft.destinationType ?? "group",
+        destinationChatId: draft.destinationChatId ?? 0,
+        destinationType: draft.destinationType ?? (draft.destinationChatId ? "group" : "dm"),
         scheduleType: draft.scheduleType ?? "daily",
         timesOfDay: draft.timesOfDay,
         daysOfWeek: draft.daysOfWeek,
         timezone: draft.timezone ?? this.defaultTimezone,
         startDate: draft.startDate ?? getTodayDateInZone(this.defaultTimezone),
         endDate: draft.endDate,
+        snoozeIntervals: customSnooze,
+        autoRepeatIntervals: customRepeat,
       },
       ctx.userId,
     );
@@ -337,21 +456,28 @@ export class WizardMenu extends Menu {
     await ctx.navigateTo("RemindersMenu");
   }
 
-  private renderPreview(draft: WizardDraft, _lang: Locale): string {
+  private renderPreview(draft: WizardDraft, lang: Locale): string {
     const desc = draft.description ? `\n_Описание_: ${draft.description}` : "";
     const times = draft.timesOfDay?.join(", ") ?? "—";
     const dest =
       draft.destinationType === "group"
-        ? `Группа (${draft.destinationChatId})`
-        : "Личные сообщения (ЛС)";
+        ? lang === "en"
+          ? `Group (\`${draft.destinationChatId}\`)`
+          : `Группа (\`${draft.destinationChatId}\`)`
+        : lang === "en"
+          ? "Direct Messages (DM to each recipient)"
+          : "Личные сообщения (ЛС каждому получателю)";
     const dur = draft.endDate
       ? `${draft.startDate} — ${draft.endDate}`
-      : `с ${draft.startDate} (бессрочно)`;
+      : lang === "en"
+        ? `from ${draft.startDate} (indefinite)`
+        : `с ${draft.startDate} (бессрочно)`;
+    const recipients = draft.targetUserIds?.map((id) => `\`${id}\``).join(", ") ?? "—";
 
     return (
       `📌 *${draft.title}*${desc}\n` +
       `🏷 _Категория_: ${draft.category}\n` +
-      `👤 _Получатель_: \`${draft.targetUserIds?.[0]}\`\n` +
+      `👥 _Получатели_: ${recipients}\n` +
       `💬 _Канал доставки_: ${dest}\n` +
       `⏰ _Время суток_: ${times} (${draft.timezone})\n` +
       `📅 _Срок_: ${dur}`

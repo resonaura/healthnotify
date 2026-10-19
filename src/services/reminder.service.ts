@@ -142,6 +142,57 @@ export class ReminderService {
     return true;
   }
 
+  public async updateReminder(
+    id: number,
+    patch: {
+      title?: string;
+      description?: string | null;
+      timesOfDay?: string[];
+      destinationChatId?: number;
+      destinationType?: DestinationType;
+      targetUserIds?: number[];
+      activeStatus?: ActiveStatus;
+    },
+    actorUserId: number,
+  ): Promise<ReminderDefinition | null> {
+    const def = await this.getReminder(id);
+    if (!def) return null;
+
+    if (patch.title !== undefined) def.title = patch.title;
+    if (patch.description !== undefined) def.description = patch.description;
+    if (patch.timesOfDay !== undefined) {
+      def.timesOfDayJson = JSON.stringify(patch.timesOfDay);
+    }
+    if (patch.destinationChatId !== undefined) def.destinationChatId = patch.destinationChatId;
+    if (patch.destinationType !== undefined) def.destinationType = patch.destinationType;
+    if (patch.targetUserIds !== undefined) {
+      def.targetUserIdsJson = JSON.stringify(patch.targetUserIds);
+    }
+    if (patch.activeStatus !== undefined) def.activeStatus = patch.activeStatus;
+
+    const saved = await this.defRepo.save(def);
+
+    if (patch.timesOfDay !== undefined || patch.targetUserIds !== undefined) {
+      await this.occRepo
+        .createQueryBuilder()
+        .delete()
+        .from(ReminderOccurrence)
+        .where("reminderDefinitionId = :id AND status = 'SCHEDULED'", { id })
+        .execute();
+
+      if (saved.activeStatus === "active") {
+        await this.populateOccurrencesForDefinition(saved);
+      }
+    }
+
+    await this.historyService.logEvent(`def-${id}`, id, 0, actorUserId, "resumed", {
+      action: "updated",
+      patch,
+    });
+
+    return saved;
+  }
+
   public async populateOccurrencesForDefinition(
     def: ReminderDefinition,
     windowDays = 14,

@@ -55,14 +55,15 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
   });
 
   const mainMenu = new MainMenu(reminderService);
-  const remindersMenu = new RemindersMenu(reminderService);
+  const remindersMenu = new RemindersMenu(reminderService, settings);
   const recipientsMenu = new RecipientsMenu(userRepo);
   const chatsMenu = new ChatsMenu(chatRepo, env.DEFAULT_GROUP_CHAT_ID);
   const historyMenu = new HistoryMenu(historyService);
-  const settingsMenu = new SettingsMenu(env);
+  const settingsMenu = new SettingsMenu(env, settings);
   const wizardMenu = new WizardMenu(
     settings,
     reminderService,
+    chatRepo,
     env.DEFAULT_RECIPIENT_USER_ID,
     env.DEFAULT_GROUP_CHAT_ID,
     env.DEFAULT_TIMEZONE,
@@ -223,7 +224,16 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
     const action = actionMap[actionKey ?? "d"] ?? "done";
 
     try {
-      const result = await occurrenceService.handleUserAction(occurrenceId, action, fromId);
+      const messageId = ctx.callbackQuery.message?.message_id;
+      const chatId = ctx.callbackQuery.message?.chat.id;
+      const result = await occurrenceService.handleUserAction(
+        occurrenceId,
+        action,
+        fromId,
+        new Date(),
+        messageId,
+        chatId,
+      );
       await ctx.answerCallbackQuery({ text: result.message, show_alert: false });
 
       // If Done and in DM, offer blood pressure recording prompt
@@ -325,10 +335,25 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
       return;
     }
 
-    // Check if currently inside WizardMenu
+    // Check if currently inside WizardMenu or RemindersMenu
     const currentMenu = await adminMenuSystem.currentName(ctx);
     if (currentMenu === "WizardMenu") {
       const handled = await wizardMenu.handleTextInput(
+        {
+          rawCtx: ctx,
+          userId,
+          chatId: ctx.chat.id,
+          text,
+          lang: await adminMenuSystem.userLang(userId),
+          navigateTo: (name, nextText) => adminMenuSystem.navigateTo(ctx, name, nextText),
+        },
+        text,
+      );
+      if (handled) return;
+    }
+
+    if (currentMenu === "RemindersMenu") {
+      const handled = await remindersMenu.handleTextInput(
         {
           rawCtx: ctx,
           userId,

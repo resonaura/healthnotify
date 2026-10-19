@@ -13,6 +13,7 @@ import type { HistoryService } from "../../src/services/history.service.js";
 import type { BotUser } from "../../src/persistence/entities/bot-user.entity.js";
 import type { RegisteredChat } from "../../src/persistence/entities/registered-chat.entity.js";
 import { ReminderDefinition } from "../../src/persistence/entities/reminder-definition.entity.js";
+import type { SettingsStore } from "../../src/persistence/settings.store.js";
 
 describe("Menu UI Unit Tests", () => {
   let mockContext: MenuActionContext;
@@ -94,22 +95,110 @@ describe("Menu UI Unit Tests", () => {
       resumeReminder: vi.fn().mockResolvedValue(true),
     } as unknown as ReminderService;
 
-    const menu = new RemindersMenu(mockReminderService);
+    const store = new Map<string, string>();
+    const mockSettings = {
+      get: vi.fn(async (key: string, fallback = "") => store.get(key) ?? fallback),
+      set: vi.fn(async (key: string, val: string) => {
+        store.set(key, val);
+      }),
+      delete: vi.fn(async (key: string) => {
+        store.delete(key);
+      }),
+    } as unknown as SettingsStore;
+
+    const menu = new RemindersMenu(mockReminderService, mockSettings);
     await menu.onInit(mockContext);
 
-    // Toggle reminder (active -> pause)
+    // Click reminder card -> enters detail mode
+    await menu.buttons[0]![0]!.action!(mockContext);
+    expect(mockSettings.set).toHaveBeenCalledWith(`reminders_selected_${mockContext.userId}`, "1");
+
+    // Toggle reminder (active -> pause) in detail view
+    store.set(`reminders_selected_${mockContext.userId}`, "1");
+    (mockReminderService.getReminder as any) = vi.fn().mockResolvedValue(activeDef);
+    await menu.onInit(mockContext);
     await menu.buttons[0]![0]!.action!(mockContext);
     expect(mockReminderService.pauseReminder).toHaveBeenCalledWith(1, mockContext.userId);
 
-    // On message renders reminder list
+    // On message renders reminder details
     await menu.onMessage(mockContext);
     expect(replies[replies.length - 1]).toContain("Blood Pressure");
 
     // Empty list
+    store.clear();
     (mockReminderService.listReminders as any).mockResolvedValue([]);
     await menu.onInit(mockContext);
     await menu.onMessage(mockContext);
     expect(replies[replies.length - 1]).toContain("Напоминаний пока нет");
+  });
+
+  it("RemindersMenu handles interactive title and time editing via handleTextInput", async () => {
+    const activeDef = new ReminderDefinition();
+    activeDef.id = 1;
+    activeDef.title = "Blood Pressure";
+    activeDef.activeStatus = "active";
+    activeDef.timesOfDayJson = JSON.stringify(["06:00", "20:00"]);
+    activeDef.startDate = "2026-10-19";
+    activeDef.timezone = "Europe/Moscow";
+
+    const mockReminderService = {
+      listReminders: vi.fn().mockResolvedValue([activeDef]),
+      getReminder: vi.fn().mockResolvedValue(activeDef),
+      updateReminder: vi.fn().mockResolvedValue(activeDef),
+      deleteReminder: vi.fn().mockResolvedValue(true),
+    } as unknown as ReminderService;
+
+    const store = new Map<string, string>();
+    const mockSettings = {
+      get: vi.fn(async (key: string, fallback = "") => store.get(key) ?? fallback),
+      set: vi.fn(async (key: string, val: string) => {
+        store.set(key, val);
+      }),
+      delete: vi.fn(async (key: string) => {
+        store.delete(key);
+      }),
+    } as unknown as SettingsStore;
+
+    const menu = new RemindersMenu(mockReminderService, mockSettings);
+    store.set(`reminders_selected_${mockContext.userId}`, "1");
+    await menu.onInit(mockContext);
+
+    // Click Edit Title button
+    await menu.buttons[1]![0]!.action!(mockContext);
+    expect(mockSettings.set).toHaveBeenCalledWith(
+      `reminder_edit_${mockContext.userId}`,
+      JSON.stringify({ id: 1, field: "title" }),
+    );
+
+    // Send new title
+    const handledTitle = await menu.handleTextInput(mockContext, "New Blood Pressure Title");
+    expect(handledTitle).toBe(true);
+    expect(mockReminderService.updateReminder).toHaveBeenCalledWith(
+      1,
+      { title: "New Blood Pressure Title" },
+      mockContext.userId,
+    );
+
+    // Set Edit Times
+    store.set(
+      `reminder_edit_${mockContext.userId}`,
+      JSON.stringify({ id: 1, field: "times" }),
+    );
+    const handledTimes = await menu.handleTextInput(mockContext, "07:00, 21:00");
+    expect(handledTimes).toBe(true);
+    expect(mockReminderService.updateReminder).toHaveBeenCalledWith(
+      1,
+      { timesOfDay: ["07:00", "21:00"] },
+      mockContext.userId,
+    );
+
+    // Click Archive button
+    await menu.buttons[2]![0]!.action!(mockContext);
+    expect(mockReminderService.deleteReminder).toHaveBeenCalledWith(1, mockContext.userId);
+
+    // Click Back button
+    await menu.buttons[3]![0]!.action!(mockContext);
+    expect(mockSettings.delete).toHaveBeenCalledWith(`reminders_selected_${mockContext.userId}`);
   });
 
   it("RecipientsMenu lists registered users and supports refresh and back navigation", async () => {
@@ -204,15 +293,29 @@ describe("Menu UI Unit Tests", () => {
       MAX_AUTO_REPEAT_COUNT: 4,
     };
 
-    const menu = new SettingsMenu(mockEnv);
-    menu.onInit(mockContext);
+    const mockSettings = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+    } as unknown as SettingsStore;
+
+    const menu = new SettingsMenu(mockEnv, mockSettings);
+    await menu.onInit(mockContext);
 
     // Language button
     await menu.buttons[0]![0]!.action!(mockContext);
     expect(mockContext.rawCtx.reply).toHaveBeenCalled();
 
-    // Back to main
+    // Snooze cycle button
     await menu.buttons[1]![0]!.action!(mockContext);
+    expect(mockSettings.set).toHaveBeenCalled();
+
+    // Repeat cycle button
+    await menu.buttons[1]![1]!.action!(mockContext);
+    expect(mockSettings.set).toHaveBeenCalled();
+
+    // Back to main
+    await menu.buttons[2]![0]!.action!(mockContext);
     expect(mockContext.navigateTo).toHaveBeenCalledWith("MainMenu");
 
     await menu.onMessage(mockContext);

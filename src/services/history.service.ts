@@ -1,11 +1,11 @@
-import type { Repository } from "typeorm";
+import type { EntityManager, Repository } from "typeorm";
 import type {
   HealthMeasurement,
   HealthMeasurementType,
 } from "../persistence/entities/health-measurement.entity.js";
-import type {
+import {
   ReminderEvent,
-  ReminderEventType,
+  type ReminderEventType,
 } from "../persistence/entities/reminder-event.entity.js";
 import type { ReminderOccurrence } from "../persistence/entities/reminder-occurrence.entity.js";
 
@@ -32,8 +32,10 @@ export class HistoryService {
     actorUserId: number,
     eventType: ReminderEventType,
     payload?: Record<string, unknown>,
+    manager?: EntityManager,
   ): Promise<ReminderEvent> {
-    const event = this.eventRepo.create({
+    const repo = manager ? manager.getRepository(ReminderEvent) : this.eventRepo;
+    const event = repo.create({
       occurrenceId,
       reminderDefinitionId,
       targetUserId,
@@ -42,7 +44,7 @@ export class HistoryService {
       payloadJson: payload ? JSON.stringify(payload) : null,
       createdAtUtc: new Date(),
     });
-    return this.eventRepo.save(event);
+    return repo.save(event);
   }
 
   public async recordMeasurement(
@@ -51,8 +53,12 @@ export class HistoryService {
     value: Record<string, unknown>,
     occurrenceId: string | null = null,
     note: string | null = null,
+    manager?: EntityManager,
   ): Promise<HealthMeasurement> {
-    const record = this.measurementRepo.create({
+    const repo = manager
+      ? manager.getRepository(this.measurementRepo.target)
+      : this.measurementRepo;
+    const record = repo.create({
       targetUserId,
       occurrenceId,
       measurementType: type,
@@ -60,7 +66,7 @@ export class HistoryService {
       note,
       recordedAtUtc: new Date(),
     });
-    return this.measurementRepo.save(record);
+    return repo.save(record);
   }
 
   public async getComplianceStats(

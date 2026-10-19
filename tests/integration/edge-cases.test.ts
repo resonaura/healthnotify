@@ -246,4 +246,76 @@ describe("Edge Cases & Hardening Integration", () => {
     expect(res2.success).toBe(false);
     expect(res2.message).toContain("Maximum snooze limit reached");
   });
+
+  it("rejects actions clicked on outdated cards when a newer message was delivered", async () => {
+    const def = await reminderService.createReminder(
+      {
+        title: "Freshness Test",
+        targetUserIds: [fatherId],
+        destinationChatId: fatherId,
+        scheduleType: "once",
+        timesOfDay: ["12:00"],
+        startDate: "2026-10-19",
+      },
+      adminId,
+    );
+
+    const occRepo = dataSource.getRepository(ReminderOccurrence);
+    const occ = (await occRepo.findOneBy({ reminderDefinitionId: def.id }))!;
+
+    // Initial delivery: messageId 1234
+    await occurrenceService.processDueOccurrence(occ.id);
+    const freshOcc = (await occRepo.findOneBy({ id: occ.id }))!;
+    expect(freshOcc.activeMessageId).toBe(1234);
+
+    // Simulate an auto-repeat or snooze re-send where messageId becomes 5678
+    freshOcc.activeMessageId = 5678;
+    await occRepo.save(freshOcc);
+
+    // Clicking button on old message (messageId 1234) should be rejected
+    await expect(
+      occurrenceService.handleUserAction(occ.id, "done", fatherId, new Date(), 1234),
+    ).rejects.toThrow(ConflictError);
+
+    // Clicking button on current message (messageId 5678) should succeed
+    const res = await occurrenceService.handleUserAction(
+      occ.id,
+      "done",
+      fatherId,
+      new Date(),
+      5678,
+    );
+    expect(res.success).toBe(true);
+  });
+
+  it("delivers occurrences independently to each recipient's private DM chat ID", async () => {
+    const def = await reminderService.createReminder(
+      {
+        title: "Multi-Recipient DM Test",
+        targetUserIds: [fatherId, adminId],
+        destinationChatId: 0,
+        destinationType: "dm",
+        scheduleType: "once",
+        timesOfDay: ["10:00"],
+        startDate: "2026-10-19",
+      },
+      adminId,
+    );
+
+    const occRepo = dataSource.getRepository(ReminderOccurrence);
+    const occs = await occRepo.find({ where: { reminderDefinitionId: def.id } });
+    expect(occs).toHaveLength(2);
+
+    const fatherOcc = occs.find((o) => o.targetUserId === fatherId)!;
+    const adminOcc = occs.find((o) => o.targetUserId === adminId)!;
+
+    mockApi.sentMessages = [];
+    await occurrenceService.processDueOccurrence(fatherOcc.id);
+    expect(mockApi.sentMessages).toHaveLength(1);
+    expect(mockApi.sentMessages[0]?.chatId).toBe(fatherId);
+
+    await occurrenceService.processDueOccurrence(adminOcc.id);
+    expect(mockApi.sentMessages).toHaveLength(2);
+    expect(mockApi.sentMessages[1]?.chatId).toBe(adminId);
+  });
 });

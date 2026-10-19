@@ -92,6 +92,8 @@ export class OccurrenceService {
       }
     }
 
+    const targetChatId = def.destinationType === "dm" ? occ.targetUserId : def.destinationChatId;
+
     // 1. Initial delivery: SCHEDULED -> PENDING
     if (occ.status === "SCHEDULED") {
       try {
@@ -99,7 +101,7 @@ export class OccurrenceService {
           def,
           occ,
           fallbackUser,
-          def.destinationChatId,
+          targetChatId,
           lang,
         );
 
@@ -109,23 +111,17 @@ export class OccurrenceService {
           def.getAutoRepeatIntervals(),
           now,
         );
-        OccurrenceStateMachine.markPending(
-          occ,
-          def.destinationChatId,
-          messageId,
-          now,
-          nextDueAtUtc,
-        );
+        OccurrenceStateMachine.markPending(occ, targetChatId, messageId, now, nextDueAtUtc);
         await this.occRepo.save(occ);
 
-        await this.recordAttempt(occ.id, def.destinationChatId, "initial", "success", messageId);
+        await this.recordAttempt(occ.id, targetChatId, "initial", "success", messageId);
         await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, 0, "sent", {
           messageId,
-          destinationChatId: def.destinationChatId,
+          destinationChatId: targetChatId,
         });
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        await this.recordAttempt(occ.id, def.destinationChatId, "initial", "failed", null, errMsg);
+        await this.recordAttempt(occ.id, targetChatId, "initial", "failed", null, errMsg);
         await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, 0, "delivery_failed", {
           error: errMsg,
         });
@@ -144,7 +140,7 @@ export class OccurrenceService {
           def,
           occ,
           fallbackUser,
-          def.destinationChatId,
+          targetChatId,
           lang,
         );
 
@@ -154,23 +150,17 @@ export class OccurrenceService {
           def.getAutoRepeatIntervals(),
           now,
         );
-        OccurrenceStateMachine.markPending(
-          occ,
-          def.destinationChatId,
-          messageId,
-          now,
-          nextDueAtUtc,
-        );
+        OccurrenceStateMachine.markPending(occ, targetChatId, messageId, now, nextDueAtUtc);
         await this.occRepo.save(occ);
 
-        await this.recordAttempt(occ.id, def.destinationChatId, "snooze", "success", messageId);
+        await this.recordAttempt(occ.id, targetChatId, "snooze", "success", messageId);
         await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, 0, "sent", {
           type: "snooze_reminder",
           messageId,
         });
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        await this.recordAttempt(occ.id, def.destinationChatId, "snooze", "failed", null, errMsg);
+        await this.recordAttempt(occ.id, targetChatId, "snooze", "failed", null, errMsg);
       }
       return;
     }
@@ -198,7 +188,7 @@ export class OccurrenceService {
             def,
             occ,
             fallbackUser,
-            def.destinationChatId,
+            targetChatId,
             lang,
           );
 
@@ -209,23 +199,17 @@ export class OccurrenceService {
             now,
           );
 
-          OccurrenceStateMachine.markRepeated(
-            occ,
-            def.destinationChatId,
-            messageId,
-            nextDueAtUtc,
-            now,
-          );
+          OccurrenceStateMachine.markRepeated(occ, targetChatId, messageId, nextDueAtUtc, now);
           await this.occRepo.save(occ);
 
-          await this.recordAttempt(occ.id, def.destinationChatId, "repeat", "success", messageId);
+          await this.recordAttempt(occ.id, targetChatId, "repeat", "success", messageId);
           await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, 0, "repeated", {
             repeatCount: occ.repeatCount,
             messageId,
           });
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
-          await this.recordAttempt(occ.id, def.destinationChatId, "repeat", "failed", null, errMsg);
+          await this.recordAttempt(occ.id, targetChatId, "repeat", "failed", null, errMsg);
         }
       } else {
         // Max repeats reached and deadline passed -> MISSED
@@ -251,6 +235,8 @@ export class OccurrenceService {
     action: UserActionType,
     userId: number,
     now: Date = new Date(),
+    sourceMessageId?: number,
+    _sourceChatId?: number,
   ): Promise<ActionResult> {
     const user = await this.userRepo.findOneBy({ id: userId });
     const lang = (user?.language === "en" ? "en" : "ru") as Locale;
@@ -263,6 +249,11 @@ export class OccurrenceService {
 
       // Check authorization: only the targeted user can perform actions
       assertCanActOnOccurrence(userId, occ.targetUserId, occurrenceId);
+
+      // Check source message freshness: prevent clicking obsolete cards from before an auto-repeat or re-send
+      if (sourceMessageId && occ.activeMessageId && sourceMessageId !== occ.activeMessageId) {
+        throw new ConflictError(t(lang, "reminder_card_outdated"));
+      }
 
       // If occurrence is already completed / skipped / missed / cancelled
       if (["COMPLETED", "SKIPPED", "MISSED", "CANCELLED"].includes(occ.status)) {
@@ -289,9 +280,15 @@ export class OccurrenceService {
         OccurrenceStateMachine.markCompleted(occ, now);
         await tx.save(occ);
 
-        await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, userId, "completed", {
-          completedAt: now.toISOString(),
-        });
+        await this.historyService.logEvent(
+          occ.id,
+          def.id,
+          occ.targetUserId,
+          userId,
+          "completed",
+          { completedAt: now.toISOString() },
+          tx,
+        );
 
         return {
           action: "done" as const,
@@ -333,10 +330,18 @@ export class OccurrenceService {
         OccurrenceStateMachine.markSnoozed(occ, snoozeRes.nextDueAtUtc, now);
         await tx.save(occ);
 
-        await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, userId, "snoozed", {
-          snoozeCount: occ.snoozeCount,
-          snoozedUntil: snoozeRes.nextDueAtUtc.toISOString(),
-        });
+        await this.historyService.logEvent(
+          occ.id,
+          def.id,
+          occ.targetUserId,
+          userId,
+          "snoozed",
+          {
+            snoozeCount: occ.snoozeCount,
+            snoozedUntil: snoozeRes.nextDueAtUtc.toISOString(),
+          },
+          tx,
+        );
 
         const timeStr = formatTimeInZone(snoozeRes.nextDueAtUtc, def.timezone);
         return {
@@ -360,9 +365,15 @@ export class OccurrenceService {
         OccurrenceStateMachine.markSkipped(occ, now);
         await tx.save(occ);
 
-        await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, userId, "skipped", {
-          skippedAt: now.toISOString(),
-        });
+        await this.historyService.logEvent(
+          occ.id,
+          def.id,
+          occ.targetUserId,
+          userId,
+          "skipped",
+          { skippedAt: now.toISOString() },
+          tx,
+        );
 
         return {
           action: "skip" as const,
@@ -393,12 +404,15 @@ export class OccurrenceService {
       return result;
     }
 
-    if (occ.activeMessageChatId && occ.activeMessageId) {
-      const baseText = buildReminderMessageText(def, occ, targetUser, def.destinationChatId, lang);
+    const targetChatId = def.destinationType === "dm" ? occ.targetUserId : def.destinationChatId;
+    const activeChatId = occ.activeMessageChatId ?? targetChatId;
+
+    if (activeChatId && occ.activeMessageId) {
+      const baseText = buildReminderMessageText(def, occ, targetUser, activeChatId, lang);
 
       if (resolvedAction === "done") {
         await this.deliveryService.updateCardOnCompleted(
-          occ.activeMessageChatId,
+          activeChatId,
           occ.activeMessageId,
           baseText,
           now,
@@ -407,7 +421,7 @@ export class OccurrenceService {
         );
       } else if (resolvedAction === "snooze" && txResult.snoozeRes?.allowed) {
         await this.deliveryService.updateCardOnSnooze(
-          occ.activeMessageChatId,
+          activeChatId,
           occ.activeMessageId,
           baseText,
           txResult.snoozeRes.nextDueAtUtc,
@@ -418,7 +432,7 @@ export class OccurrenceService {
         );
       } else if (resolvedAction === "skip") {
         await this.deliveryService.updateCardOnSkipped(
-          occ.activeMessageChatId,
+          activeChatId,
           occ.activeMessageId,
           baseText,
           now,

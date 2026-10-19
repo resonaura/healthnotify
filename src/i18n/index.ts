@@ -77,6 +77,8 @@ export const translations = {
     // Popups & Feedback
     error_not_your_reminder: "⚠️ Это напоминание предназначено другому человеку.",
     reminder_already_handled: "ℹ️ Это напоминание уже обработано.",
+    reminder_card_outdated:
+      "⚠️ Это уведомление устарело. Пожалуйста, используйте последнее отправленное сообщение.",
     reminder_done_ack: "✅ Отлично! Выполнение зафиксировано в истории.",
     reminder_snoozed_ack: "🕒 Напоминание отложено на {minutes} мин. (до {time}).",
     reminder_skipped_ack: "❌ Напоминание пропущено.",
@@ -88,7 +90,7 @@ export const translations = {
       "Шаг 2 из 10: Описание (необязательно)\n\nВведите дополнительное описание, дозировку или инструкцию. Либо отправьте «-», чтобы пропустить:",
     wizard_step_category: "Шаг 3 из 10: Категория\n\nВыберите категорию напоминания:",
     wizard_step_recipients:
-      "Шаг 4 из 10: Получатель\n\nВыберите получателя из списка зарегистрированных пользователей либо введите Telegram User ID:",
+      "Шаг 4 из 10: Получатель\n\nВыберите получателя(-ей) кнопками либо введите один или несколько Telegram User ID через запятую:",
     wizard_step_destination: "Шаг 5 из 10: Канал доставки\n\nКуда отправлять напоминание?",
     wizard_step_timezone: "Шаг 6 из 10: Часовой пояс\n\nВыберите часовой пояс расписания:",
     wizard_step_schedule_type: "Шаг 7 из 10: Тип расписания\n\nВыберите периодичность:",
@@ -105,9 +107,21 @@ export const translations = {
     reminders_list_header: "📋 Список напоминаний:\n\n{lines}",
     reminders_empty:
       "📭 Напоминаний пока нет.\n\nНажмите «➕ Создать напоминание», чтобы добавить первое.",
+    reminders_detail_header:
+      "📌 *Детали напоминания #{id}*\n\nНазвание: *{title}*\nКатегория: {category}\nСтатус: {status}\nВремя: {times} ({timezone})\nПериод: {dates}\nПолучатели: {recipients}\nКанал доставки: {destination}\nSnooze интервалы: {snooze}\nRepeat интервалы: {repeat}",
     btn_pause_rule: "⏸ Приостановить",
     btn_resume_rule: "▶️ Возобновить",
     btn_delete_rule: "🗑 Удалить",
+    btn_edit_title: "✏️ Изменить название",
+    btn_edit_times: "⏰ Изменить время",
+    btn_archive_rule: "🗑 Архивировать",
+    btn_snooze_intervals: "🕒 Изменить Snooze",
+    btn_repeat_intervals: "🔄 Изменить Repeat",
+    btn_both_father_and_me: "👨‍👩‍👧 Отец и Я",
+    btn_to_dm_each: "💬 Личные сообщения (ЛС каждому)",
+    prompt_edit_title: "✏️ Введите новое название для напоминания #{id}:",
+    prompt_edit_times: "⏰ Введите новое время суток (например: «06:00, 20:00»):",
+    reminder_updated_success: "✅ Напоминание #{id} успешно обновлено!",
     confirm_delete:
       "⚠️ Вы уверены, что хотите удалить напоминание «{title}»?\nИстория предыдущих выполнений сохранится.",
 
@@ -127,6 +141,8 @@ export const translations = {
     // Settings Menu
     settings_header:
       "⚙️ Системные настройки:\n\nЧасовой пояс по умолчанию: {timezone}\nЯзык: {language}\nИнтервалы откладывания: {snoozeIntervals} мин.\nИнтервалы повторов: {repeatIntervals} мин.\nАдминистраторы: {admins}",
+    settings_snooze_updated: "✅ Интервалы откладывания обновлены: {intervals} мин.",
+    settings_repeat_updated: "✅ Интервалы автоповторов обновлены: {intervals} мин.",
 
     // Blood Pressure measurement prompt
     bp_measurement_prompt:
@@ -179,6 +195,8 @@ export const translations = {
     // Popups & Feedback
     error_not_your_reminder: "⚠️ This reminder is intended for another person.",
     reminder_already_handled: "ℹ️ This reminder has already been handled.",
+    reminder_card_outdated:
+      "⚠️ This notification has expired. Please use the latest notification message.",
     reminder_done_ack: "✅ Great! Marked as completed in history.",
     reminder_snoozed_ack: "🕒 Snoozed for {minutes} min (until {time}).",
     reminder_skipped_ack: "❌ Reminder skipped.",
@@ -190,7 +208,7 @@ export const translations = {
       "Step 2 of 10: Description (optional)\n\nEnter extra notes, dosage, or instructions. Or send '-' to skip:",
     wizard_step_category: "Step 3 of 10: Category\n\nChoose reminder category:",
     wizard_step_recipients:
-      "Step 4 of 10: Recipient\n\nSelect a recipient from registered users or enter Telegram User ID:",
+      "Step 4 of 10: Recipient\n\nSelect recipient(s) using buttons or enter one or more Telegram User IDs separated by commas:",
     wizard_step_destination: "Step 5 of 10: Destination\n\nWhere should the reminder be delivered?",
     wizard_step_timezone: "Step 6 of 10: Timezone\n\nSelect schedule timezone:",
     wizard_step_schedule_type: "Step 7 of 10: Schedule Frequency\n\nChoose recurrence type:",
@@ -207,9 +225,21 @@ export const translations = {
     reminders_list_header: "📋 Reminders List:\n\n{lines}",
     reminders_empty:
       "📭 No reminders configured yet.\n\nClick '➕ Create Reminder' to add your first one.",
+    reminders_detail_header:
+      "📌 *Reminder Details #{id}*\n\nTitle: *{title}*\nCategory: {category}\nStatus: {status}\nTimes: {times} ({timezone})\nPeriod: {dates}\nRecipients: {recipients}\nDestination: {destination}\nSnooze intervals: {snooze}\nRepeat intervals: {repeat}",
     btn_pause_rule: "⏸ Pause",
     btn_resume_rule: "▶️ Resume",
     btn_delete_rule: "🗑 Delete",
+    btn_edit_title: "✏️ Edit Title",
+    btn_edit_times: "⏰ Edit Times",
+    btn_archive_rule: "🗑 Archive",
+    btn_snooze_intervals: "🕒 Change Snooze",
+    btn_repeat_intervals: "🔄 Change Repeat",
+    btn_both_father_and_me: "👨‍👩‍👧 Father & Me",
+    btn_to_dm_each: "💬 Direct Messages (DM to each)",
+    prompt_edit_title: "✏️ Enter new title for reminder #{id}:",
+    prompt_edit_times: "⏰ Enter new times (e.g. '06:00, 20:00'):",
+    reminder_updated_success: "✅ Reminder #{id} successfully updated!",
     confirm_delete:
       "⚠️ Are you sure you want to delete '{title}'?\nHistorical occurrences will remain preserved.",
 
@@ -229,6 +259,8 @@ export const translations = {
     // Settings Menu
     settings_header:
       "⚙️ System Settings:\n\nDefault Timezone: {timezone}\nLanguage: {language}\nSnooze Progression: {snoozeIntervals} min\nAuto-repeat intervals: {repeatIntervals} min\nAdministrators: {admins}",
+    settings_snooze_updated: "✅ Snooze intervals updated: {intervals} min.",
+    settings_repeat_updated: "✅ Auto-repeat intervals updated: {intervals} min.",
 
     // Blood Pressure measurement prompt
     bp_measurement_prompt:
