@@ -318,4 +318,88 @@ describe("Edge Cases & Hardening Integration", () => {
     expect(mockApi.sentMessages).toHaveLength(2);
     expect(mockApi.sentMessages[1]?.chatId).toBe(adminId);
   });
+
+  it("rejects actions clicked from outdated/wrong chat ID", async () => {
+    const def = await reminderService.createReminder(
+      {
+        title: "Chat Freshness Test",
+        targetUserIds: [fatherId],
+        destinationChatId: -100111222,
+        destinationType: "group",
+        scheduleType: "once",
+        timesOfDay: ["12:00"],
+        startDate: "2026-10-19",
+      },
+      adminId,
+    );
+
+    const occRepo = dataSource.getRepository(ReminderOccurrence);
+    const occ = (await occRepo.findOneBy({ reminderDefinitionId: def.id }))!;
+    await occurrenceService.processDueOccurrence(occ.id);
+
+    // Clicking from wrong chat should be rejected
+    await expect(
+      occurrenceService.handleUserAction(occ.id, "done", fatherId, new Date(), 1234, -999999),
+    ).rejects.toThrow(ConflictError);
+
+    // Clicking from correct chat and message succeeds
+    const res = await occurrenceService.handleUserAction(
+      occ.id,
+      "done",
+      fatherId,
+      new Date(),
+      1234,
+      -100111222,
+    );
+    expect(res.success).toBe(true);
+  });
+
+  it("ensures atomic rollback of occurrence status and history events on transaction failure", async () => {
+    const def = await reminderService.createReminder(
+      {
+        title: "Atomicity Test",
+        targetUserIds: [fatherId],
+        destinationChatId: fatherId,
+        scheduleType: "once",
+        timesOfDay: ["12:00"],
+        startDate: "2026-10-19",
+      },
+      adminId,
+    );
+
+    const occRepo = dataSource.getRepository(ReminderOccurrence);
+    const occ = (await occRepo.findOneBy({ reminderDefinitionId: def.id }))!;
+    await occurrenceService.processDueOccurrence(occ.id);
+
+    const initialOcc = (await occRepo.findOneBy({ id: occ.id }))!;
+    expect(initialOcc.status).toBe("PENDING");
+
+    const eventRepo = dataSource.getRepository(ReminderEvent);
+    const initialEventsCount = await eventRepo.count({ where: { occurrenceId: occ.id } });
+
+    // Force error inside transaction
+    const originalLogEvent = historyService.logEvent.bind(historyService);
+    historyService.logEvent = async (...args) => {
+      if (args[4] === "completed") {
+        throw new Error("Simulated database constraint failure during event log");
+      }
+      return originalLogEvent(...args);
+    };
+
+    try {
+      await expect(
+        occurrenceService.handleUserAction(occ.id, "done", fatherId, new Date(), 1234),
+      ).rejects.toThrow("Simulated database constraint failure");
+
+      // Verify that occurrence status was rolled back and is still PENDING
+      const rolledBackOcc = (await occRepo.findOneBy({ id: occ.id }))!;
+      expect(rolledBackOcc.status).toBe("PENDING");
+
+      // Verify that no new event was persisted for this occurrence
+      const finalEventsCount = await eventRepo.count({ where: { occurrenceId: occ.id } });
+      expect(finalEventsCount).toBe(initialEventsCount);
+    } finally {
+      historyService.logEvent = originalLogEvent;
+    }
+  });
 });

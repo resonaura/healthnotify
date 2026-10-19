@@ -348,11 +348,11 @@ _Goal: Resolve final sprint audit points: transactional atomicity for events, me
 - [x] **Task 11.1**: Transactional Atomicity for Callback Actions & History.
   - _DoD_: Accept optional `EntityManager` in `HistoryService.logEvent` and pass `tx` inside `OccurrenceService.handleUserAction` transaction.
   - _Status_: `VERIFIED`
-  - _Evidence_: Tested in `tests/integration/edge-cases.test.ts`.
+  - _Evidence_: Tested in `tests/integration/edge-cases.test.ts` (`ensures atomic rollback of occurrence status and history events on transaction failure`).
 - [x] **Task 11.2**: Inline Message Freshness Guard.
-  - _DoD_: Validate `sourceMessageId === occ.activeMessageId` on callback query to reject clicks from obsolete notifications after auto-repeats or snoozes.
+  - _DoD_: Validate `sourceMessageId === occ.activeMessageId` and `sourceChatId === occ.activeMessageChatId` on callback query to reject clicks from obsolete notifications after auto-repeats or snoozes.
   - _Status_: `VERIFIED`
-  - _Evidence_: Tested in `tests/integration/edge-cases.test.ts` (rejection of stale message ID with `ConflictError`).
+  - _Evidence_: Tested in `tests/integration/edge-cases.test.ts` (`rejects actions clicked on outdated cards when a newer message was delivered`, `rejects actions clicked from outdated/wrong chat ID`).
 - [x] **Task 11.3**: Multiple Recipients & Independent Delivery.
   - _DoD_: Support multiple user IDs in wizard, independent destination routing (individual recipient DM vs shared group chat), and independent occurrences.
   - _Status_: `VERIFIED`
