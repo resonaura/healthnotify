@@ -7,6 +7,7 @@ import { RecipientsMenu } from "../../src/bot/menus/recipients.menu.js";
 import { ChatsMenu } from "../../src/bot/menus/chats.menu.js";
 import { HistoryMenu } from "../../src/bot/menus/history.menu.js";
 import { SettingsMenu } from "../../src/bot/menus/settings.menu.js";
+import { WizardMenu, type WizardDraft } from "../../src/bot/menus/wizard.menu.js";
 import type { MenuActionContext } from "../../src/bot/menu-system.js";
 import type { ReminderService } from "../../src/services/reminder.service.js";
 import type { HistoryService } from "../../src/services/history.service.js";
@@ -317,5 +318,196 @@ describe("Menu UI Unit Tests", () => {
 
     await menu.onMessage(mockContext);
     expect(replies[replies.length - 1]).toContain("America/Vancouver");
+  });
+
+  it("WizardMenu walks through creation steps, handles inputs, and saves reminder", async () => {
+    const store = new Map<string, string>();
+    const mockSettings = {
+      get: vi.fn(async (key: string, fallback = "") => store.get(key) ?? fallback),
+      set: vi.fn(async (key: string, val: string) => {
+        store.set(key, val);
+      }),
+      delete: vi.fn(async (key: string) => {
+        store.delete(key);
+      }),
+      getWizardDraft: vi.fn(async <T = WizardDraft>(userId: number): Promise<T | null> => {
+        const raw = store.get(`wizard_draft_${userId}`);
+        return raw ? (JSON.parse(raw) as T) : null;
+      }),
+      setWizardDraft: vi.fn(async (userId: number, draft: unknown) => {
+        store.set(`wizard_draft_${userId}`, JSON.stringify(draft));
+      }),
+      clearWizardDraft: vi.fn(async (userId: number) => {
+        store.delete(`wizard_draft_${userId}`);
+      }),
+    } as unknown as SettingsStore;
+
+    const mockReminderService = {
+      createReminder: vi.fn().mockResolvedValue({ id: 42 }),
+    } as unknown as ReminderService;
+
+    const mockChatRepo = {
+      find: vi
+        .fn()
+        .mockResolvedValue([{ id: -100999999, title: "Custom Group", createdAt: new Date() }]),
+    } as unknown as Repository<RegisteredChat>;
+
+    const wizard = new WizardMenu(
+      mockSettings,
+      mockReminderService,
+      mockChatRepo,
+      915156343,
+      -1004301185075,
+      "America/Vancouver",
+    );
+
+    // Initial state: Step title
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    expect(replies[replies.length - 1]).toContain("Шаг 1 из 10");
+
+    // Title input
+    await wizard.handleTextInput(mockContext, "Измерить давление");
+    let draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.step).toBe("description");
+
+    // Description input
+    await wizard.handleTextInput(mockContext, "Утром и вечером");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.step).toBe("category");
+
+    // Category button click
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    expect(wizard.buttons.length).toBeGreaterThan(0);
+    // Click 'measurement' button (first row, first button)
+    await wizard.buttons[0]![0]!.action!(mockContext);
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.step).toBe("recipient");
+
+    // Recipient step: test multi-id input
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    await wizard.handleTextInput(mockContext, "915156343, 359079621");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.step).toBe("destination");
+    expect(draft?.targetUserIds).toEqual([915156343, 359079621]);
+
+    // Destination step: choose DM to each
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    await wizard.buttons[0]![0]!.action!(mockContext); // DM
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.step).toBe("timezone");
+
+    // Timezone step: choose default timezone
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    await wizard.buttons[0]![0]!.action!(mockContext); // default timezone
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.step).toBe("schedule_type");
+
+    // Schedule type step: test interval buttons and natural text input
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    // Test text input for interval
+    await wizard.handleTextInput(mockContext, "раз в 3 дня");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.scheduleType).toBe("interval");
+    expect(draft?.daysOfWeek).toEqual([3]);
+    expect(draft?.step).toBe("times");
+
+    // Test text input schedule types branches
+    draft.step = "schedule_type";
+    await mockSettings.setWizardDraft(mockContext.userId, draft);
+    await wizard.handleTextInput(mockContext, "будни");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.scheduleType).toBe("weekdays");
+
+    draft.step = "schedule_type";
+    await mockSettings.setWizardDraft(mockContext.userId, draft);
+    await wizard.handleTextInput(mockContext, "через день");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.scheduleType).toBe("interval");
+    expect(draft?.daysOfWeek).toEqual([2]);
+
+    draft.step = "schedule_type";
+    await mockSettings.setWizardDraft(mockContext.userId, draft);
+    await wizard.handleTextInput(mockContext, "еженедельно");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.scheduleType).toBe("interval");
+    expect(draft?.daysOfWeek).toEqual([7]);
+
+    draft.step = "schedule_type";
+    await mockSettings.setWizardDraft(mockContext.userId, draft);
+    await wizard.handleTextInput(mockContext, "однократно");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.scheduleType).toBe("once");
+
+    draft.step = "schedule_type";
+    await mockSettings.setWizardDraft(mockContext.userId, draft);
+    await wizard.handleTextInput(mockContext, "каждый день");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.scheduleType).toBe("daily");
+
+    // Times step: test natural language parser input
+    draft.step = "times";
+    await mockSettings.setWizardDraft(mockContext.userId, draft);
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    // Invalid time test
+    await wizard.handleTextInput(mockContext, "непонятное время");
+    expect(replies[replies.length - 1]).toContain("Не удалось распознать");
+
+    // Valid time input
+    await wizard.handleTextInput(mockContext, "В 6 утра и 8 вечера");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.timesOfDay).toEqual(["06:00", "20:00"]);
+    expect(draft?.step).toBe("duration");
+
+    // Duration step: test indefinite text
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    await wizard.handleTextInput(mockContext, "14 дней");
+    draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
+    expect(draft?.endDate).toBeTruthy();
+    expect(draft?.step).toBe("confirm");
+
+    // Confirm step: renders preview and confirms
+    draft.scheduleType = "interval";
+    draft.daysOfWeek = [2];
+    await mockSettings.setWizardDraft(mockContext.userId, draft);
+
+    await wizard.onInit(mockContext);
+    await wizard.onMessage(mockContext);
+    expect(replies[replies.length - 1]).toContain("Проверьте параметры");
+    expect(replies[replies.length - 1]).toContain("Раз в 2 дня (через день)");
+
+    // English render preview test
+    const enContext = { ...mockContext, lang: "en" as const };
+    await wizard.onInit(enContext);
+    await wizard.onMessage(enContext);
+    expect(replies[replies.length - 1]).toContain("Review your new reminder");
+
+    // Click confirm button
+    await wizard.buttons[0]![0]!.action!(mockContext);
+    expect(mockReminderService.createReminder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Измерить давление",
+        category: "measurement",
+        targetUserIds: [915156343, 359079621],
+        scheduleType: "interval",
+        timesOfDay: ["06:00", "20:00"],
+      }),
+      mockContext.userId,
+    );
+    expect(mockContext.navigateTo).toHaveBeenCalledWith("RemindersMenu");
+
+    // Test cancel button
+    await mockSettings.setWizardDraft(mockContext.userId, { step: "title" });
+    await wizard.onInit(mockContext);
+    const cancelBtn = wizard.buttons[wizard.buttons.length - 1]![0]!;
+    await cancelBtn.action!(mockContext);
+    expect(mockContext.navigateTo).toHaveBeenCalledWith("MainMenu");
   });
 });
