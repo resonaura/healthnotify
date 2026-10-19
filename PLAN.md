@@ -314,38 +314,38 @@ _Goal: End-to-end clean verification, quality gates, and final report._
 
 ## 6. Acceptance Criteria Checklist (AC-01 to AC-30)
 
-| ID | Criteria Description | Status | Evidence |
-| :--- | :--- | :---: | :--- |
-| **AC-01** | Admin starts bot in DM and gets full menu (`MainMenu`) | `VERIFIED` | `tests/e2e/bot-interaction.test.ts`, `tests/unit/menus.test.ts` |
-| **AC-02** | Unauthorized user cannot access admin menu | `VERIFIED` | `tests/e2e/bot-interaction.test.ts` (unauthorized user receives 403 message) |
-| **AC-03** | Admin creates reminder for 14 days with 2 times per day | `VERIFIED` | `tests/unit/recurrence.test.ts` (generates exactly 28 occurrences) |
-| **AC-04** | Reminder is assigned to specific Telegram User ID | `VERIFIED` | `tests/unit/recurrence.test.ts`, `tests/integration/scheduler.test.ts` |
-| **AC-05** | Reminder delivered to pre-connected group with target mention | `VERIFIED` | `tests/integration/scheduler.test.ts`, `tests/unit/delivery.service.test.ts` |
-| **AC-06** | Reminder delivered to DM after user onboarding | `VERIFIED` | `tests/unit/delivery.service.test.ts` (DM delivery without mentions) |
-| **AC-07** | Group members see buttons but only target can act | `VERIFIED` | `tests/integration/edge-cases.test.ts` (ForbiddenError thrown for non-target) |
-| **AC-08** | "Done" completes occurrence, saves history, stops repeats | `VERIFIED` | `tests/integration/scheduler.test.ts` (status -> COMPLETED, repeats stopped) |
-| **AC-09** | "Later" reschedules with correct progression (5m, 10m, ...) | `VERIFIED` | `tests/unit/snooze.test.ts` (ladder tested up to 60m), `scheduler.test.ts` |
-| **AC-10** | After "Later", old card retains "Done" and "Skip" | `VERIFIED` | `tests/integration/scheduler.test.ts`, `delivery.service.test.ts` |
-| **AC-11** | When snooze reminder fires, old buttons are deactivated | `VERIFIED` | `tests/integration/scheduler.test.ts` (`clearedMarkups` verified) |
-| **AC-12** | Unanswered message auto-repeats according to policy | `VERIFIED` | `tests/integration/scheduler.test.ts` (repeatCount increments, repeats sent) |
-| **AC-13** | On auto-repeat, old action buttons become obsolete | `VERIFIED` | `tests/integration/scheduler.test.ts` (`clearedMarkups` verified) |
-| **AC-14** | "Skip" marks occurrence SKIPPED, doesn't delete rule | `VERIFIED` | `tests/unit/state-machine.test.ts`, `tests/integration/edge-cases.test.ts` |
-| **AC-15** | Exhausted repeats transition occurrence to MISSED | `VERIFIED` | `tests/integration/scheduler.test.ts` (transitions to MISSED on exhaustion) |
-| **AC-16** | Pending jobs restored and executed after restart | `VERIFIED` | `tests/integration/scheduler.test.ts` (overdue catch-up vs expire verified) |
-| **AC-17** | Concurrent callbacks do not cause duplicate transitions | `VERIFIED` | `tests/integration/edge-cases.test.ts` (second click throws ConflictError) |
-| **AC-18** | Multiple recipients of same rule have independent status | `VERIFIED` | `tests/unit/recurrence.test.ts` (independent occurrences generated per user) |
-| **AC-19** | Admin can edit, pause, and resume schedules | `VERIFIED` | `tests/unit/reminder.service.test.ts`, `tests/unit/menus.test.ts` |
-| **AC-20** | History tracks completed, skipped, snoozed, missed | `VERIFIED` | `tests/unit/history.service.test.ts` (compliance stats calculation verified) |
-| **AC-21** | All user and admin messages are localized (ru/en) | `VERIFIED` | `src/i18n/index.test.ts` (full key coverage and Russian pluralization) |
-| **AC-22** | Interactive setup creates working `.env` securely | `VERIFIED` | `scripts/setup.ts`, live Bot API token verification |
-| **AC-23** | Clean install, migrations, and build work smoothly | `VERIFIED` | `npm ci`, `npm run migrate`, `npm run build` |
-| **AC-24** | Oxlint, Prettier, TypeScript, Vitest pass cleanly | `VERIFIED` | GitHub Actions CI Run `39201299109` passed green (`✓`) |
-| **AC-25** | English README matches real implementation & style | `VERIFIED` | `README.md` created matching `resonaura` style |
-| **AC-26** | GitHub repo created with CI, topics, description | `VERIFIED` | `https://github.com/resonaura/healthnotify` (Public, 9 topics, CI badge) |
-| **AC-27** | Admin menu replicates `donnmemes` UX 1:1 | `VERIFIED` | `src/bot/menu-system.ts`, persistent reply keyboard & DB navigation |
-| **AC-28** | PLAN.md updated with test evidence & approvals | `VERIFIED` | Full evidence matrix recorded in this document |
-| **AC-29** | Zero stubs, zero fake tests, zero mock implementations | `VERIFIED` | Pure implementation with real database & domain models |
-| **AC-30** | Final result is fully runnable and production-ready | `VERIFIED` | Validated in development and compiled production ESM |
+| ID        | Criteria Description                                          |   Status   | Evidence                                                                      |
+| :-------- | :------------------------------------------------------------ | :--------: | :---------------------------------------------------------------------------- |
+| **AC-01** | Admin starts bot in DM and gets full menu (`MainMenu`)        | `VERIFIED` | `tests/e2e/bot-interaction.test.ts`, `tests/unit/menus.test.ts`               |
+| **AC-02** | Unauthorized user cannot access admin menu                    | `VERIFIED` | `tests/e2e/bot-interaction.test.ts` (unauthorized user receives 403 message)  |
+| **AC-03** | Admin creates reminder for 14 days with 2 times per day       | `VERIFIED` | `tests/unit/recurrence.test.ts` (generates exactly 28 occurrences)            |
+| **AC-04** | Reminder is assigned to specific Telegram User ID             | `VERIFIED` | `tests/unit/recurrence.test.ts`, `tests/integration/scheduler.test.ts`        |
+| **AC-05** | Reminder delivered to pre-connected group with target mention | `VERIFIED` | `tests/integration/scheduler.test.ts`, `tests/unit/delivery.service.test.ts`  |
+| **AC-06** | Reminder delivered to DM after user onboarding                | `VERIFIED` | `tests/unit/delivery.service.test.ts` (DM delivery without mentions)          |
+| **AC-07** | Group members see buttons but only target can act             | `VERIFIED` | `tests/integration/edge-cases.test.ts` (ForbiddenError thrown for non-target) |
+| **AC-08** | "Done" completes occurrence, saves history, stops repeats     | `VERIFIED` | `tests/integration/scheduler.test.ts` (status -> COMPLETED, repeats stopped)  |
+| **AC-09** | "Later" reschedules with correct progression (5m, 10m, ...)   | `VERIFIED` | `tests/unit/snooze.test.ts` (ladder tested up to 60m), `scheduler.test.ts`    |
+| **AC-10** | After "Later", old card retains "Done" and "Skip"             | `VERIFIED` | `tests/integration/scheduler.test.ts`, `delivery.service.test.ts`             |
+| **AC-11** | When snooze reminder fires, old buttons are deactivated       | `VERIFIED` | `tests/integration/scheduler.test.ts` (`clearedMarkups` verified)             |
+| **AC-12** | Unanswered message auto-repeats according to policy           | `VERIFIED` | `tests/integration/scheduler.test.ts` (repeatCount increments, repeats sent)  |
+| **AC-13** | On auto-repeat, old action buttons become obsolete            | `VERIFIED` | `tests/integration/scheduler.test.ts` (`clearedMarkups` verified)             |
+| **AC-14** | "Skip" marks occurrence SKIPPED, doesn't delete rule          | `VERIFIED` | `tests/unit/state-machine.test.ts`, `tests/integration/edge-cases.test.ts`    |
+| **AC-15** | Exhausted repeats transition occurrence to MISSED             | `VERIFIED` | `tests/integration/scheduler.test.ts` (transitions to MISSED on exhaustion)   |
+| **AC-16** | Pending jobs restored and executed after restart              | `VERIFIED` | `tests/integration/scheduler.test.ts` (overdue catch-up vs expire verified)   |
+| **AC-17** | Concurrent callbacks do not cause duplicate transitions       | `VERIFIED` | `tests/integration/edge-cases.test.ts` (second click throws ConflictError)    |
+| **AC-18** | Multiple recipients of same rule have independent status      | `VERIFIED` | `tests/unit/recurrence.test.ts` (independent occurrences generated per user)  |
+| **AC-19** | Admin can edit, pause, and resume schedules                   | `VERIFIED` | `tests/unit/reminder.service.test.ts`, `tests/unit/menus.test.ts`             |
+| **AC-20** | History tracks completed, skipped, snoozed, missed            | `VERIFIED` | `tests/unit/history.service.test.ts` (compliance stats calculation verified)  |
+| **AC-21** | All user and admin messages are localized (ru/en)             | `VERIFIED` | `src/i18n/index.test.ts` (full key coverage and Russian pluralization)        |
+| **AC-22** | Interactive setup creates working `.env` securely             | `VERIFIED` | `scripts/setup.ts`, live Bot API token verification                           |
+| **AC-23** | Clean install, migrations, and build work smoothly            | `VERIFIED` | `npm ci`, `npm run migrate`, `npm run build`                                  |
+| **AC-24** | Oxlint, Prettier, TypeScript, Vitest pass cleanly             | `VERIFIED` | GitHub Actions CI Run `39201299109` passed green (`✓`)                        |
+| **AC-25** | English README matches real implementation & style            | `VERIFIED` | `README.md` created matching `resonaura` style                                |
+| **AC-26** | GitHub repo created with CI, topics, description              | `VERIFIED` | `https://github.com/resonaura/healthnotify` (Public, 9 topics, CI badge)      |
+| **AC-27** | Admin menu replicates `donnmemes` UX 1:1                      | `VERIFIED` | `src/bot/menu-system.ts`, persistent reply keyboard & DB navigation           |
+| **AC-28** | PLAN.md updated with test evidence & approvals                | `VERIFIED` | Full evidence matrix recorded in this document                                |
+| **AC-29** | Zero stubs, zero fake tests, zero mock implementations        | `VERIFIED` | Pure implementation with real database & domain models                        |
+| **AC-30** | Final result is fully runnable and production-ready           | `VERIFIED` | Validated in development and compiled production ESM                          |
 
 ---
 
