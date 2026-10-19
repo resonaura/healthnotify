@@ -1,12 +1,14 @@
 import type { Repository } from "typeorm";
 import type { Locale } from "../../i18n/index.js";
 import { t } from "../../i18n/index.js";
+import type { BotUser } from "../../persistence/entities/bot-user.entity.js";
 import type { RegisteredChat } from "../../persistence/entities/registered-chat.entity.js";
 import type {
   ReminderCategory,
   ScheduleType,
 } from "../../persistence/entities/reminder-definition.entity.js";
 import type { SettingsStore } from "../../persistence/settings.store.js";
+import type { DeliveryService } from "../../services/delivery.service.js";
 import type { ReminderService } from "../../services/reminder.service.js";
 import { addDaysToDate, getTodayDateInZone, parseTimesInput } from "../../shared/time.js";
 import { Button, Menu, type MenuActionContext } from "../menu-system.js";
@@ -45,10 +47,12 @@ export class WizardMenu extends Menu {
   constructor(
     private readonly settings: SettingsStore,
     private readonly reminderService: ReminderService,
+    private readonly userRepo: Repository<BotUser>,
     private readonly chatRepo: Repository<RegisteredChat>,
-    private readonly defaultFatherId: number | null,
-    private readonly defaultGroupId: number | null,
-    private readonly defaultTimezone: string,
+    private readonly defaultRecipientId: number | null = null,
+    private readonly defaultGroupId: number | null = null,
+    private readonly defaultTimezone: string = "America/Vancouver",
+    private readonly deliveryService?: DeliveryService,
   ) {
     super();
   }
@@ -111,33 +115,102 @@ export class WizardMenu extends Menu {
         [cancelBtn],
       ];
     } else if (draft.step === "recipient") {
-      const row1: Button[] = [];
-      if (this.defaultFatherId) {
-        row1.push(
-          new Button(
-            ctx.lang === "en"
-              ? `👨 Father (${this.defaultFatherId})`
-              : `👨 Отец (${this.defaultFatherId})`,
-            (act) => this.handleRecipient(act, [this.defaultFatherId!]),
-          ),
-        );
+      const registered = await this.userRepo.find({ order: { updatedAt: "DESC" }, take: 10 });
+      let defaultUser: BotUser | undefined = registered.find(
+        (u) => u.id === this.defaultRecipientId,
+      );
+
+      if (!defaultUser && this.defaultRecipientId) {
+        defaultUser =
+          (await this.userRepo.findOneBy({ id: this.defaultRecipientId })) ?? undefined;
+        if (!defaultUser && this.deliveryService) {
+          const chats = await this.chatRepo.find({ where: { isActive: true }, take: 5 });
+          let resolvedProfile: {
+            firstName: string;
+            lastName: string | null;
+            username: string | null;
+          } | null = null;
+          for (const c of chats) {
+            resolvedProfile = await this.deliveryService.fetchUserProfile(
+              this.defaultRecipientId,
+              c.id,
+            );
+            if (resolvedProfile) break;
+          }
+          if (resolvedProfile) {
+            defaultUser = this.userRepo.create({
+              id: this.defaultRecipientId,
+              firstName: resolvedProfile.firstName,
+              lastName: resolvedProfile.lastName,
+              username: resolvedProfile.username,
+              role: "USER",
+              dmActive: false,
+              language: "ru",
+              dataConsent: true,
+            });
+            await this.userRepo.save(defaultUser);
+          }
+        }
       }
-      row1.push(
-        new Button(ctx.lang === "en" ? "👤 Myself" : "👤 Себе", (act) =>
+
+      const allCandidates: BotUser[] = [...registered];
+      if (defaultUser && !allCandidates.some((u) => u.id === defaultUser!.id)) {
+        allCandidates.push(defaultUser);
+      }
+
+      const rows: Button[][] = [];
+      const userButtons: Button[] = [];
+
+      userButtons.push(
+        new Button(t(ctx.lang, "btn_myself"), (act) =>
           this.handleRecipient(act, [act.userId]),
         ),
       );
 
-      const row2: Button[] = [];
-      if (this.defaultFatherId) {
-        row2.push(
-          new Button(t(ctx.lang, "btn_both_father_and_me"), (act) =>
-            this.handleRecipient(act, [this.defaultFatherId!, act.userId]),
-          ),
+      const otherUsers = allCandidates.filter((u) => u.id !== ctx.userId);
+      for (const u of otherUsers) {
+        const fullName = [u.firstName, u.lastName].filter(Boolean).join(" ");
+        const displayName =
+          fullName && fullName !== "Отец"
+            ? fullName
+            : u.username
+              ? `@${u.username}`
+              : `ID: ${u.id}`;
+        userButtons.push(
+          new Button(`👤 ${displayName}`, (act) => this.handleRecipient(act, [u.id])),
         );
       }
 
-      this.buttons = [row1, ...(row2.length > 0 ? [row2] : []), [cancelBtn]];
+      for (let i = 0; i < userButtons.length; i += 2) {
+        rows.push(userButtons.slice(i, i + 2));
+      }
+
+      if (otherUsers.length === 1) {
+        const singleOther = otherUsers[0]!;
+        const otherName =
+          singleOther.firstName && singleOther.firstName !== "Отец"
+            ? singleOther.firstName
+            : singleOther.username
+              ? `@${singleOther.username}`
+              : `ID: ${singleOther.id}`;
+        rows.push([
+          new Button(
+            t(ctx.lang, "btn_both_recipient_and_me", { name: otherName }),
+            (act) => this.handleRecipient(act, [singleOther.id, act.userId]),
+          ),
+        ]);
+      } else if (otherUsers.length > 1) {
+        const allTargetIds = Array.from(new Set([ctx.userId, ...otherUsers.map((u) => u.id)]));
+        rows.push([
+          new Button(
+            t(ctx.lang, "btn_all_recipients", { count: allTargetIds.length }),
+            (act) => this.handleRecipient(act, allTargetIds),
+          ),
+        ]);
+      }
+
+      rows.push([cancelBtn]);
+      this.buttons = rows;
     } else if (draft.step === "destination") {
       const rows: Button[][] = [];
       rows.push([
@@ -291,7 +364,9 @@ export class WizardMenu extends Menu {
     } else if (draft.step === "duration") {
       await ctx.rawCtx.reply(t(ctx.lang, "wizard_step_duration"), this.getKeyboard());
     } else if (draft.step === "confirm") {
-      const previewText = this.renderPreview(draft, ctx.lang);
+      const users = await this.userRepo.find({ take: 20 });
+      const usersMap = new Map(users.map((u) => [u.id, u]));
+      const previewText = this.renderPreview(draft, ctx.lang, usersMap);
       await ctx.rawCtx.reply(t(ctx.lang, "wizard_step_preview", { previewText }), {
         ...this.getKeyboard(),
         parse_mode: "Markdown",
@@ -407,7 +482,53 @@ export class WizardMenu extends Menu {
     draft.targetUserIds = userIds;
     draft.step = "destination";
     await this.settings.setWizardDraft(ctx.userId, draft);
+
+    if (this.deliveryService) {
+      for (const id of userIds) {
+        void this.tryResolveAndCacheUserProfile(id);
+      }
+    }
+
     await ctx.navigateTo(this.name);
+  }
+
+  private async tryResolveAndCacheUserProfile(userId: number): Promise<void> {
+    try {
+      const existing = await this.userRepo.findOneBy({ id: userId });
+      if (existing && existing.firstName && existing.firstName !== "Отец") return;
+
+      const chats = await this.chatRepo.find({ where: { isActive: true }, take: 5 });
+      let resolved: { firstName: string; lastName: string | null; username: string | null } | null = null;
+      if (this.deliveryService) {
+        for (const chat of chats) {
+          resolved = await this.deliveryService.fetchUserProfile(userId, chat.id);
+          if (resolved) break;
+        }
+      }
+
+      if (resolved) {
+        if (existing) {
+          existing.firstName = resolved.firstName;
+          existing.lastName = resolved.lastName;
+          existing.username = resolved.username;
+          await this.userRepo.save(existing);
+        } else {
+          const newUser = this.userRepo.create({
+            id: userId,
+            firstName: resolved.firstName,
+            lastName: resolved.lastName,
+            username: resolved.username,
+            role: "USER",
+            dmActive: false,
+            language: "ru",
+            dataConsent: true,
+          });
+          await this.userRepo.save(newUser);
+        }
+      }
+    } catch {
+      // Ignore background resolution error
+    }
   }
 
   private async handleDestination(
@@ -527,7 +648,11 @@ export class WizardMenu extends Menu {
     await ctx.navigateTo("RemindersMenu");
   }
 
-  private renderPreview(draft: WizardDraft, lang: Locale): string {
+  private renderPreview(
+    draft: WizardDraft,
+    lang: Locale,
+    usersMap = new Map<number, BotUser>(),
+  ): string {
     const desc = draft.description ? `\n_Описание_: ${draft.description}` : "";
     const times = draft.timesOfDay?.join(", ") ?? "—";
     const dest =
@@ -543,7 +668,23 @@ export class WizardMenu extends Menu {
       : lang === "en"
         ? `from ${draft.startDate} (indefinite)`
         : `с ${draft.startDate} (бессрочно)`;
-    const recipients = draft.targetUserIds?.map((id) => `\`${id}\``).join(", ") ?? "—";
+
+    const recipients =
+      draft.targetUserIds && draft.targetUserIds.length > 0
+        ? draft.targetUserIds
+            .map((id) => {
+              const u = usersMap.get(id);
+              const fullName = u ? [u.firstName, u.lastName].filter(Boolean).join(" ") : null;
+              if (fullName && fullName !== "Отец") {
+                return `${fullName} (\`${id}\`)`;
+              }
+              if (u?.username) {
+                return `@${u.username} (\`${id}\`)`;
+              }
+              return `\`${id}\``;
+            })
+            .join(", ")
+        : "—";
     const schedule =
       draft.scheduleType === "weekdays"
         ? lang === "en"

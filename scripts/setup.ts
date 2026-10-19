@@ -94,10 +94,10 @@ async function main(): Promise<void> {
     default: currentGroup,
   });
 
-  // 4. Default Recipient User ID (Father)
-  const currentRecipient = process.env.DEFAULT_RECIPIENT_USER_ID || "915156343";
+  // 4. Default Recipient User ID (Optional)
+  const currentRecipient = process.env.DEFAULT_RECIPIENT_USER_ID || "";
   const recipientUserIdInput = await input({
-    message: "Default recipient Telegram user ID (e.g. father, press Enter to skip):",
+    message: "Default recipient Telegram user ID (optional, press Enter to leave empty):",
     default: currentRecipient,
   });
 

@@ -17,6 +17,7 @@ import { ChatsMenu } from "./menus/chats.menu.js";
 import { HistoryMenu } from "./menus/history.menu.js";
 import { MainMenu } from "./menus/main.menu.js";
 import { RecipientsMenu } from "./menus/recipients.menu.js";
+import { DeliveryService } from "../services/delivery.service.js";
 import { RemindersMenu } from "./menus/reminders.menu.js";
 import { SettingsMenu } from "./menus/settings.menu.js";
 import { WizardMenu } from "./menus/wizard.menu.js";
@@ -30,6 +31,7 @@ export interface RegisterBotOptions {
   reminderService: ReminderService;
   occurrenceService: OccurrenceService;
   historyService: HistoryService;
+  deliveryService?: DeliveryService;
   userRepo: Repository<BotUser>;
   chatRepo: Repository<RegisteredChat>;
   occRepo: Repository<ReminderOccurrence>;
@@ -60,13 +62,16 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
   const chatsMenu = new ChatsMenu(chatRepo, env.DEFAULT_GROUP_CHAT_ID);
   const historyMenu = new HistoryMenu(historyService);
   const settingsMenu = new SettingsMenu(env, settings);
+  const delivery = options.deliveryService ?? new DeliveryService(bot.api);
   const wizardMenu = new WizardMenu(
     settings,
     reminderService,
+    userRepo,
     chatRepo,
     env.DEFAULT_RECIPIENT_USER_ID,
     env.DEFAULT_GROUP_CHAT_ID,
     env.DEFAULT_TIMEZONE,
+    delivery,
   );
 
   adminMenuSystem.registerMenu(mainMenu);

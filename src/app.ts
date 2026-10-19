@@ -83,6 +83,7 @@ export async function createApp(env: AppEnv = readEnv()): Promise<AppInstance> {
     reminderService,
     occurrenceService,
     historyService,
+    deliveryService,
     userRepo,
     chatRepo,
     occRepo,

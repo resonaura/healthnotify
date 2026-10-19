@@ -352,9 +352,24 @@ describe("Menu UI Unit Tests", () => {
         .mockResolvedValue([{ id: -100999999, title: "Custom Group", createdAt: new Date() }]),
     } as unknown as Repository<RegisteredChat>;
 
+    const mockUserRepo = {
+      find: vi.fn().mockResolvedValue([
+        { id: 915156343, firstName: "Alex", lastName: "Smith", username: "alexsmith" },
+      ]),
+      findOneBy: vi.fn().mockResolvedValue({
+        id: 915156343,
+        firstName: "Alex",
+        lastName: "Smith",
+        username: "alexsmith",
+      }),
+      create: vi.fn((data: unknown) => data),
+      save: vi.fn(),
+    } as unknown as Repository<BotUser>;
+
     const wizard = new WizardMenu(
       mockSettings,
       mockReminderService,
+      mockUserRepo,
       mockChatRepo,
       915156343,
       -1004301185075,
@@ -385,9 +400,13 @@ describe("Menu UI Unit Tests", () => {
     draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
     expect(draft?.step).toBe("recipient");
 
-    // Recipient step: test multi-id input
+    // Recipient step: test buttons render and multi-id text input
     await wizard.onInit(mockContext);
     await wizard.onMessage(mockContext);
+    // Button label should contain Alex Smith, NEVER "Отец"
+    expect(wizard.buttons.flat().some((b) => b.text.includes("Alex Smith"))).toBe(true);
+    expect(wizard.buttons.flat().some((b) => b.text.includes("Отец"))).toBe(false);
+
     await wizard.handleTextInput(mockContext, "915156343, 359079621");
     draft = (await mockSettings.getWizardDraft<WizardDraft>(mockContext.userId))!;
     expect(draft?.step).toBe("destination");
