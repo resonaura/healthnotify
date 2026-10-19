@@ -1,8 +1,8 @@
 /**
  * PM2 Ecosystem Configuration for HealthNotify
- * ESM module executed under Node 24+
+ * CommonJS format required by PM2 internal loader
  */
-export default {
+module.exports = {
   apps: [
     {
       name: "healthnotify",

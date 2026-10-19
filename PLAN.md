@@ -326,18 +326,18 @@ _Goal: Resolve code audit findings, harden occurrence state transitions, configu
     6. Fixture sanitization: zero real or partial bot tokens in test fixtures.
   - _Status_: `VERIFIED`
   - _Evidence_: 81 tests passing with 98.24% statements / 93.75% branches on `src/scheduler/**` and 100% statements / 91.17% branches on `src/domain/occurrences/**`.
-- [x] **Task 10.2**: PM2 Ecosystem Configuration (`ecosystem.config.mjs`).
-  - _DoD_: Native ESM configuration, single instance (fork mode), `autorestart: true`, `max_memory_restart: 300M`, `kill_timeout: 5000`.
+- [x] **Task 10.2**: PM2 Ecosystem Configuration (`ecosystem.config.cjs`).
+  - _DoD_: CommonJS configuration compatible with PM2 loader, single instance (fork mode), `autorestart: true`, `max_memory_restart: 300M`, `kill_timeout: 5000`.
   - _Status_: `VERIFIED`
-  - _Evidence_: `ecosystem.config.mjs` created and validated.
-- [ ] **Task 10.3**: Remote Deployment to `resonaura@192.168.5.117`.
+  - _Evidence_: `ecosystem.config.cjs` configured and verified with PM2 supervisor.
+- [x] **Task 10.3**: Remote Deployment to `resonaura@192.168.5.117`.
   - _DoD_: Clone/pull repository, set up persistent data folder `~/.local/share/healthnotify/data/healthnotify.sqlite`, install dependencies via `npm ci`, build ESM, run migrations, start under PM2, and save process list.
-  - _Status_: `IN PROGRESS`
-  - _Evidence_: SSH deployment in progress.
-- [ ] **Task 10.4**: Production Long-Polling Verification.
+  - _Status_: `VERIFIED`
+  - _Evidence_: Deployed to `/home/resonaura/apps/healthnotify`, migrations executed on persistent SQLite, PM2 process list saved via `pm2 save`.
+- [x] **Task 10.4**: Production Long-Polling Verification.
   - _DoD_: Verify `pm2 status healthnotify` is online (0 restarts), `pm2 logs` confirms bot is polling without 409 conflicts.
-  - _Status_: `IN PROGRESS`
-  - _Evidence_: PM2 logs verification in progress.
+  - _Status_: `VERIFIED`
+  - _Evidence_: PM2 process ID 40 is `online` with 0 errors in `healthnotify-error-40.log`; logs confirm `Bot @healthnotifyhomebot (Health Notify) is online and polling!`.
 
 ---
 
