@@ -97,4 +97,55 @@ describe("DeliveryService Unit", () => {
     // deactivateButtons swallows error
     await expect(service.deactivateButtons(123, 456)).resolves.toBeUndefined();
   });
+
+  it("fetches user profile via getChat or getChatMember fallback", async () => {
+    // 1. Successful getChat
+    const mockApi1: TelegramApi = {
+      sendMessage: vi.fn(),
+      editMessageText: vi.fn(),
+      editMessageReplyMarkup: vi.fn(),
+      getChat: vi.fn().mockResolvedValue({
+        first_name: "Ivan",
+        last_name: "Petrov",
+        username: "ivan_p",
+      }),
+    };
+    const service1 = new DeliveryService(mockApi1);
+    const profile1 = await service1.fetchUserProfile(1001, -100430);
+    expect(profile1).toEqual({
+      firstName: "Ivan",
+      lastName: "Petrov",
+      username: "ivan_p",
+    });
+
+    // 2. getChat fails, getChatMember succeeds
+    const mockApi2: TelegramApi = {
+      sendMessage: vi.fn(),
+      editMessageText: vi.fn(),
+      editMessageReplyMarkup: vi.fn(),
+      getChat: vi.fn().mockRejectedValue(new Error("Chat not found")),
+      getChatMember: vi.fn().mockResolvedValue({
+        user: { first_name: "Anna", last_name: null, username: "anna_tg" },
+      }),
+    };
+    const service2 = new DeliveryService(mockApi2);
+    const profile2 = await service2.fetchUserProfile(1002, -100430);
+    expect(profile2).toEqual({
+      firstName: "Anna",
+      lastName: null,
+      username: "anna_tg",
+    });
+
+    // 3. Both fail or not present
+    const mockApi3: TelegramApi = {
+      sendMessage: vi.fn(),
+      editMessageText: vi.fn(),
+      editMessageReplyMarkup: vi.fn(),
+      getChat: vi.fn().mockRejectedValue(new Error("Fail")),
+      getChatMember: vi.fn().mockRejectedValue(new Error("Fail")),
+    };
+    const service3 = new DeliveryService(mockApi3);
+    const profile3 = await service3.fetchUserProfile(1003, -100430);
+    expect(profile3).toBeNull();
+  });
 });
