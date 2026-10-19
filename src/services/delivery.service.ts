@@ -46,6 +46,29 @@ export function formatTargetMention(user: BotUser): string {
   return `[${name}](tg://user?id=${user.id})`;
 }
 
+export function buildReminderMessageText(
+  definition: ReminderDefinition,
+  occurrence: ReminderOccurrence,
+  targetUser: BotUser,
+  destinationChatId: number,
+  lang: Locale = "ru",
+): string {
+  const plannedTimeStr = formatTimeInZone(occurrence.plannedAtUtc, definition.timezone);
+  const isGroup = destinationChatId < 0;
+
+  const header = isGroup
+    ? t(lang, "reminder_group_header", { targetMention: formatTargetMention(targetUser) })
+    : t(lang, "reminder_dm_header");
+
+  const descriptionPart = definition.description ? `\n_${definition.description}_` : "";
+
+  return `${header}\n\n${t(lang, "reminder_body", {
+    title: definition.title,
+    descriptionPart,
+    plannedTime: plannedTimeStr,
+  })}`;
+}
+
 export class DeliveryService {
   constructor(private readonly api: TelegramApi) {}
 
@@ -56,20 +79,13 @@ export class DeliveryService {
     destinationChatId: number,
     lang: Locale = "ru",
   ): Promise<number> {
-    const plannedTimeStr = formatTimeInZone(occurrence.plannedAtUtc, definition.timezone);
-    const isGroup = destinationChatId < 0;
-
-    const header = isGroup
-      ? t(lang, "reminder_group_header", { targetMention: formatTargetMention(targetUser) })
-      : t(lang, "reminder_dm_header");
-
-    const descriptionPart = definition.description ? `\n_${definition.description}_` : "";
-
-    const messageText = `${header}\n\n${t(lang, "reminder_body", {
-      title: definition.title,
-      descriptionPart,
-      plannedTime: plannedTimeStr,
-    })}`;
+    const messageText = buildReminderMessageText(
+      definition,
+      occurrence,
+      targetUser,
+      destinationChatId,
+      lang,
+    );
 
     const keyboard = buildActionKeyboard(occurrence.id, lang);
 

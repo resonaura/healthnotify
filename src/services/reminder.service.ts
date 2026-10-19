@@ -175,4 +175,13 @@ export class ReminderService {
 
     return createdCount;
   }
+
+  public async advanceRollingWindow(windowDays = 14): Promise<number> {
+    const activeDefs = await this.defRepo.find({ where: { activeStatus: "active" } });
+    let totalCreated = 0;
+    for (const def of activeDefs) {
+      totalCreated += await this.populateOccurrencesForDefinition(def, windowDays);
+    }
+    return totalCreated;
+  }
 }

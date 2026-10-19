@@ -238,6 +238,7 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
 
   // 5. Admin command handlers
   bot.command("start", async (ctx) => {
+    if (ctx.chat?.type !== "private") return;
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -255,30 +256,34 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
   });
 
   bot.command("menu", async (ctx) => {
+    if (ctx.chat?.type !== "private") return;
     if (!ctx.from || !isAdmin(ctx.from.id, env)) return;
     await adminMenuSystem.navigateTo(ctx, "MainMenu");
   });
 
   bot.command("help", async (ctx) => {
+    if (ctx.chat?.type !== "private") return;
     if (!ctx.from || !isAdmin(ctx.from.id, env)) return;
     await adminMenuSystem.showCurrent(ctx, "/help");
   });
 
   bot.command("cancel", async (ctx) => {
+    if (ctx.chat?.type !== "private") return;
     if (!ctx.from || !isAdmin(ctx.from.id, env)) return;
     await settings.clearWizardDraft(ctx.from.id);
     await ctx.reply("Действие отменено.");
     await adminMenuSystem.navigateTo(ctx, "MainMenu");
   });
 
-  // 6. Incoming text handler
+  // 6. Incoming text handler (private DM only)
   bot.on("message:text", async (ctx) => {
+    if (ctx.chat?.type !== "private") return;
     const text = ctx.message.text.trim();
     const userId = ctx.from.id;
 
     // Check if this is a blood pressure reading input (e.g. 120/80 70)
     const bpMatch = BP_REGEX.exec(text);
-    if (bpMatch && ctx.chat?.type === "private") {
+    if (bpMatch) {
       const systolic = Number(bpMatch[1]);
       const diastolic = Number(bpMatch[2]);
       const pulse = bpMatch[3] ? Number(bpMatch[3]) : null;

@@ -121,4 +121,51 @@ describe("SchedulerWorker Unit", () => {
     const count1 = await tick1;
     expect(count1).toBe(0);
   });
+
+  it("advances rolling window on boot and during periodic ticks, handling errors gracefully", async () => {
+    const mockOccurrenceService = {
+      findDueOccurrences: vi.fn().mockResolvedValue([]),
+      processDueOccurrence: vi.fn(),
+    } as unknown as OccurrenceService;
+
+    const mockRecovery = {
+      reconcileOverdueOccurrences: vi
+        .fn()
+        .mockResolvedValue({ recoveredCount: 0, expiredMissedCount: 0 }),
+    } as unknown as SchedulerRecovery;
+
+    const mockReminderService = {
+      advanceRollingWindow: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Boot advance error")) // First call on start throws
+        .mockResolvedValueOnce(5) // Second call succeeds
+        .mockRejectedValueOnce(new Error("Tick advance error")), // Third call throws in tick
+    } as any;
+
+    const worker = new SchedulerWorker(
+      mockOccurrenceService,
+      mockRecovery,
+      10,
+      60,
+      mockReminderService,
+    );
+
+    // Boot advance error handled gracefully
+    await expect(worker.start()).resolves.toBeUndefined();
+    expect(mockReminderService.advanceRollingWindow).toHaveBeenCalledTimes(1);
+
+    // Tick within 60 minutes should not trigger advance
+    await worker.tick(new Date(Date.now() + 10 * 60 * 1000));
+    expect(mockReminderService.advanceRollingWindow).toHaveBeenCalledTimes(1);
+
+    // Tick after 61 minutes triggers advance (succeeds)
+    await worker.tick(new Date(Date.now() + 65 * 60 * 1000));
+    expect(mockReminderService.advanceRollingWindow).toHaveBeenCalledTimes(2);
+
+    // Tick after another 65 minutes triggers advance (handles error gracefully)
+    await worker.tick(new Date(Date.now() + 135 * 60 * 1000));
+    expect(mockReminderService.advanceRollingWindow).toHaveBeenCalledTimes(3);
+
+    await worker.stop();
+  });
 });

@@ -1,4 +1,5 @@
 import type { OccurrenceService } from "../services/occurrence.service.js";
+import type { ReminderService } from "../services/reminder.service.js";
 import { logger } from "../shared/logger.js";
 import type { SchedulerRecovery } from "./recovery.js";
 
@@ -6,12 +7,14 @@ export class SchedulerWorker {
   private timer: NodeJS.Timeout | null = null;
   private isProcessing = false;
   private isRunning = false;
+  private lastRollingWindowAdvanceAt = 0;
 
   constructor(
     private readonly occurrenceService: OccurrenceService,
     private readonly recovery: SchedulerRecovery,
     private readonly intervalSeconds = 10,
     private readonly catchUpWindowMinutes = 60,
+    private readonly reminderService?: ReminderService,
   ) {}
 
   public async start(): Promise<void> {
@@ -27,6 +30,16 @@ export class SchedulerWorker {
       );
     } catch (err) {
       logger.error("Error during initial scheduler crash recovery:", err);
+    }
+
+    // Pre-populate upcoming rolling window
+    if (this.reminderService) {
+      this.lastRollingWindowAdvanceAt = Date.now();
+      try {
+        await this.reminderService.advanceRollingWindow();
+      } catch (err) {
+        logger.error("Error advancing rolling window on boot:", err);
+      }
     }
 
     // Schedule regular polling
@@ -57,6 +70,19 @@ export class SchedulerWorker {
           processedCount++;
         } catch (err) {
           logger.error(`Error processing due occurrence ${occ.id}:`, err);
+        }
+      }
+
+      // Periodically refresh rolling occurrence window (every 60 minutes)
+      if (
+        this.reminderService &&
+        now.getTime() - this.lastRollingWindowAdvanceAt >= 60 * 60 * 1000
+      ) {
+        this.lastRollingWindowAdvanceAt = now.getTime();
+        try {
+          await this.reminderService.advanceRollingWindow();
+        } catch (err) {
+          logger.error("Error advancing rolling window in scheduler tick:", err);
         }
       }
     } finally {

@@ -14,9 +14,9 @@ import { Logger, maskSecrets } from "../../src/shared/logger.js";
 describe("Logger & Errors", () => {
   it("masks bot token in plain text and object metadata", () => {
     const raw =
-      "Sending request with token 8804473731:AAHD9nHvSRVGQU5pbDai9mLwcDtFctei51s to Telegram";
+      "Sending request with token 9876543210:AAFakeMockSecretToken1234567890ABC to Telegram";
     const masked = maskSecrets(raw);
-    expect(masked).not.toContain("8804473731:AAHD9nHvSRVGQU5pbDai9mLwcDtFctei51s");
+    expect(masked).not.toContain("9876543210:AAFakeMockSecretToken1234567890ABC");
     expect(masked).toContain("[REDACTED_BOT_TOKEN]");
   });
 

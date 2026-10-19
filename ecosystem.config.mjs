@@ -1,0 +1,22 @@
+/**
+ * PM2 Ecosystem Configuration for HealthNotify
+ * ESM module executed under Node 24+
+ */
+export default {
+  apps: [
+    {
+      name: "healthnotify",
+      script: "dist/src/index.js",
+      instances: 1,
+      exec_mode: "fork",
+      watch: false,
+      autorestart: true,
+      max_memory_restart: "300M",
+      kill_timeout: 5000,
+      time: true,
+      env: {
+        NODE_ENV: "production",
+      },
+    },
+  ],
+};

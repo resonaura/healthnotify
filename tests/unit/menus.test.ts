@@ -189,7 +189,7 @@ describe("Menu UI Unit Tests", () => {
 
   it("SettingsMenu displays configured environment and routes navigation", async () => {
     const mockEnv: AppEnv = {
-      TG_BOT_TOKEN: "8804473731:AAHD9nHvSRVGQU5pbDai9mLwcDtFctei51s",
+      TG_BOT_TOKEN: "1234567890:AAFakeMockTokenForTestingPurposes00000",
       TG_ADMIN_USER_IDS: [359079621, 261171441],
       DEFAULT_GROUP_CHAT_ID: -1004301185075,
       DEFAULT_RECIPIENT_USER_ID: 915156343,

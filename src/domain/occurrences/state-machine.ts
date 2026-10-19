@@ -52,10 +52,14 @@ export class OccurrenceStateMachine {
     chatId: number,
     messageId: number,
     deliveredAt: Date = new Date(),
+    nextDueAtUtc?: Date,
   ): void {
     this.assertCanTransition(occ.status, "PENDING", occ.id);
     occ.status = "PENDING";
     occ.lastDeliveredAtUtc = deliveredAt;
+    if (nextDueAtUtc) {
+      occ.dueAtUtc = nextDueAtUtc;
+    }
     occ.activeMessageChatId = chatId;
     occ.activeMessageId = messageId;
     occ.updatedAt = deliveredAt;

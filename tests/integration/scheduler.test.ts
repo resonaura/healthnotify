@@ -158,9 +158,11 @@ describe("Scheduler & Occurrence Integration", () => {
     expect(snoozedOcc?.snoozeCount).toBe(1);
     expect(snoozedOcc?.snoozedUntilUtc).toEqual(new Date("2026-10-19T03:06:00.000Z")); // +5m
 
-    // Card should be updated to show snoozed status while keeping Done & Skip
+    // Card should be updated to show snoozed status while keeping Done & Skip and retaining card text
     expect(mockApi.editedTexts).toHaveLength(1);
     expect(mockApi.editedTexts[0]?.text).toContain("Отложено");
+    expect(mockApi.editedTexts[0]?.text).toContain("Measure Blood Pressure");
+    expect(mockApi.editedTexts[0]?.text).toContain("@father_user");
 
     // 3. Time reaches snooze due time (03:06 UTC) -> Worker ticks!
     const snoozeDueTime = new Date("2026-10-19T03:06:00.000Z");
@@ -186,6 +188,8 @@ describe("Scheduler & Occurrence Integration", () => {
     const completedOcc = await occRepo.findOneBy({ id: occ!.id });
     expect(completedOcc?.status).toBe("COMPLETED");
     expect(completedOcc?.completedAtUtc).toEqual(doneClickTime);
+    expect(mockApi.editedTexts.length).toBeGreaterThanOrEqual(2);
+    expect(mockApi.editedTexts[mockApi.editedTexts.length - 1]?.text).toContain("Выполнено");
   });
 
   it("handles auto-repeat progression and declares MISSED when limits exhausted", async () => {
@@ -213,12 +217,24 @@ describe("Scheduler & Occurrence Integration", () => {
     expect((await occRepo.findOneBy({ id: occ.id }))?.status).toBe("PENDING");
     expect(mockApi.sentMessages).toHaveLength(1);
 
+    // Intermediate tick 10 seconds later: should NOT send repeat (regression check for defect 1)
+    const t0_10s = new Date("2026-10-19T17:00:10.000Z");
+    const count0_10s = await worker.tick(t0_10s);
+    expect(count0_10s).toBe(0);
+    expect(mockApi.sentMessages).toHaveLength(1);
+
     // Repeat 1 at 17:05 UTC (+5m)
     const t1 = new Date("2026-10-19T17:05:00.000Z");
     await worker.tick(t1);
     const occRep1 = (await occRepo.findOneBy({ id: occ.id }))!;
     expect(occRep1.status).toBe("PENDING");
     expect(occRep1.repeatCount).toBe(1);
+    expect(mockApi.sentMessages).toHaveLength(2);
+
+    // Intermediate tick 10 seconds after repeat 1: should NOT send repeat
+    const t1_10s = new Date("2026-10-19T17:05:10.000Z");
+    const count1_10s = await worker.tick(t1_10s);
+    expect(count1_10s).toBe(0);
     expect(mockApi.sentMessages).toHaveLength(2);
 
     // Repeat 2 at 17:15 UTC (+10m)
@@ -335,5 +351,32 @@ describe("Scheduler & Occurrence Integration", () => {
       .mockRejectedValueOnce(new Error("Delivery failed"));
     await recovery.reconcileOverdueOccurrences(60);
     mockProcess.mockRestore();
+  });
+
+  it("continuously advances rolling window for indefinite reminders", async () => {
+    const def = await reminderService.createReminder(
+      {
+        title: "Indefinite Daily Vitamin D",
+        targetUserIds: [fatherId],
+        destinationChatId: groupChatId,
+        scheduleType: "daily",
+        timesOfDay: ["08:00"],
+        timezone: "Europe/Moscow",
+        startDate: "2026-10-19",
+        endDate: null,
+      },
+      adminId,
+    );
+
+    const occRepo = dataSource.getRepository(ReminderOccurrence);
+    const initialCount = await occRepo.countBy({ reminderDefinitionId: def.id });
+    expect(initialCount).toBeGreaterThanOrEqual(14);
+
+    // Advancing window by 30 days should generate additional occurrences
+    const newlyCreated = await reminderService.advanceRollingWindow(30);
+    expect(newlyCreated).toBeGreaterThan(0);
+
+    const updatedCount = await occRepo.countBy({ reminderDefinitionId: def.id });
+    expect(updatedCount).toBeGreaterThan(initialCount);
   });
 });

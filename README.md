@@ -213,6 +213,44 @@ npm run build
 
 ---
 
+## Production Deployment & PM2 Operations
+
+HealthNotify includes an ESM PM2 configuration (`ecosystem.config.mjs`) configured for high availability, auto-restart, memory capping, and graceful shutdown.
+
+### 1. PM2 Process Management
+
+```sh
+# Start the bot under PM2 supervision
+pm2 start ecosystem.config.mjs
+
+# Persist active processes across server reboots
+pm2 save
+
+# Check running status and uptime
+pm2 status healthnotify
+
+# View real-time logs
+pm2 logs healthnotify --lines 50
+
+# Restart process gracefully
+pm2 restart healthnotify
+
+# Stop process
+pm2 stop healthnotify
+```
+
+### 2. Updating in Production
+
+```sh
+git pull origin main
+npm ci
+npm run build
+npm run migrate
+pm2 restart healthnotify
+```
+
+---
+
 ## Security & Privacy Guarantees
 
 - **Token Masking**: Sensitive tokens (Telegram bot credentials) are automatically scrubbed from application logs using regex redaction filters.

@@ -9,7 +9,7 @@ import { ForbiddenError, UnauthorizedError } from "../../src/shared/errors.js";
 
 describe("auth.guard", () => {
   const env = readEnv({
-    TG_BOT_TOKEN: "123456789:AAHD9nHvSRVGQU5pbDai9mLwcDtFctei51s",
+    TG_BOT_TOKEN: "1234567890:AAFakeMockTokenForTestingPurposes00000",
     TG_ADMIN_USER_IDS: "359079621, 261171441",
   });
 

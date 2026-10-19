@@ -73,6 +73,7 @@ export async function createApp(env: AppEnv = readEnv()): Promise<AppInstance> {
     recovery,
     env.SCHEDULER_INTERVAL_SECONDS,
     env.CATCH_UP_WINDOW_MINUTES,
+    reminderService,
   );
 
   registerBotHandlers({

@@ -312,6 +312,35 @@ _Goal: End-to-end clean verification, quality gates, and final report._
 
 ---
 
+### Phase 10: Production PM2 Deployment & Server Hardening
+
+_Goal: Resolve code audit findings, harden occurrence state transitions, configure PM2 ESM ecosystem, and deploy to remote server (192.168.5.117) under persistent supervisor._
+
+- [x] **Task 10.1**: Code Audit & Robustness Fixes.
+  - _DoD_:
+    1. Fix auto-repeat timing: update `dueAtUtc` on initial delivery and snooze so worker waits for the full repeat interval.
+    2. Retain full reminder text on snooze: export `buildReminderMessageText` and pass original text + snooze footer.
+    3. Rolling window for indefinite reminders: add `advanceRollingWindow()` in `ReminderService` and invoke on worker start and hourly ticks.
+    4. Group privacy guard: restrict `/start`, `/menu`, `/help`, `/cancel`, and text handler to private chats (`ctx.chat?.type === "private"`).
+    5. Concurrency safety: atomic database transactions for `handleUserAction` state changes.
+    6. Fixture sanitization: zero real or partial bot tokens in test fixtures.
+  - _Status_: `VERIFIED`
+  - _Evidence_: 81 tests passing with 98.24% statements / 93.75% branches on `src/scheduler/**` and 100% statements / 91.17% branches on `src/domain/occurrences/**`.
+- [x] **Task 10.2**: PM2 Ecosystem Configuration (`ecosystem.config.mjs`).
+  - _DoD_: Native ESM configuration, single instance (fork mode), `autorestart: true`, `max_memory_restart: 300M`, `kill_timeout: 5000`.
+  - _Status_: `VERIFIED`
+  - _Evidence_: `ecosystem.config.mjs` created and validated.
+- [ ] **Task 10.3**: Remote Deployment to `resonaura@192.168.5.117`.
+  - _DoD_: Clone/pull repository, set up persistent data folder `~/.local/share/healthnotify/data/healthnotify.sqlite`, install dependencies via `npm ci`, build ESM, run migrations, start under PM2, and save process list.
+  - _Status_: `IN PROGRESS`
+  - _Evidence_: SSH deployment in progress.
+- [ ] **Task 10.4**: Production Long-Polling Verification.
+  - _DoD_: Verify `pm2 status healthnotify` is online (0 restarts), `pm2 logs` confirms bot is polling without 409 conflicts.
+  - _Status_: `IN PROGRESS`
+  - _Evidence_: PM2 logs verification in progress.
+
+---
+
 ## 6. Acceptance Criteria Checklist (AC-01 to AC-30)
 
 | ID        | Criteria Description                                          |   Status   | Evidence                                                                      |

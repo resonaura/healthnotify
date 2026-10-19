@@ -69,7 +69,7 @@ describe("Telegram Bot Interaction E2E Suite", () => {
   const groupChatId = -1004301185075;
 
   const env = readEnv({
-    TG_BOT_TOKEN: "123456789:AAHD9nHvSRVGQU5pbDai9mLwcDtFctei51s",
+    TG_BOT_TOKEN: "1234567890:AAFakeMockTokenForTestingPurposes00000",
     TG_ADMIN_USER_IDS: "359079621, 261171441",
     DEFAULT_GROUP_CHAT_ID: String(groupChatId),
     DEFAULT_RECIPIENT_USER_ID: String(fatherId),
@@ -82,7 +82,19 @@ describe("Telegram Bot Interaction E2E Suite", () => {
     await dataSource.runMigrations();
 
     mockApi = new MockTelegramApi();
-    bot = new Bot(env.TG_BOT_TOKEN);
+    bot = new Bot(env.TG_BOT_TOKEN, {
+      botInfo: {
+        id: 123456789,
+        is_bot: true,
+        first_name: "HealthNotifyBot",
+        username: "health_notify_bot",
+        can_join_groups: true,
+        can_read_all_group_messages: true,
+        supports_inline_queries: false,
+        can_connect_to_business: false,
+        has_main_web_app: false,
+      } as any,
+    });
 
     const appSettingRepo = dataSource.getRepository(AppSetting);
     const userRepo = dataSource.getRepository(BotUser);
@@ -344,5 +356,25 @@ describe("Telegram Bot Interaction E2E Suite", () => {
     const meas = await historyService.listUserMeasurements(fatherId);
     expect(meas).toHaveLength(1);
     expect(JSON.parse(meas[0]!.valueJson)).toEqual({ systolic: 120, diastolic: 80, pulse: 72 });
+  });
+
+  it("strictly restricts admin commands and menu interaction to private DMs", async () => {
+    // Simulate sending /start in a group chat
+    await (bot as any).handleUpdate({
+      update_id: 999991,
+      message: {
+        message_id: 101,
+        date: Math.floor(Date.now() / 1000),
+        chat: { id: groupChatId, type: "group", title: "Family Group" },
+        from: { id: adminId, is_bot: false, first_name: "Admin" },
+        text: "/start",
+      },
+    });
+
+    // Verify mock Telegram API did not receive any message dispatched to groupChatId from /start
+    const groupStarts = mockApi.sentMessages.filter(
+      (m) => m.chatId === groupChatId && m.text.includes("HealthNotify"),
+    );
+    expect(groupStarts).toHaveLength(0);
   });
 });

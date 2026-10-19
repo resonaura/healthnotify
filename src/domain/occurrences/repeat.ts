@@ -39,3 +39,15 @@ export function calculateRepeat(
     deadlinePassed: false,
   };
 }
+
+export function calculateNextFollowUpDueAt(
+  currentRepeatCount: number,
+  maxRepeatCount: number,
+  intervals: number[],
+  now: Date = new Date(),
+): Date {
+  const safeIntervals = intervals.length > 0 ? intervals : [5, 10, 20, 40];
+  const nextIndex = Math.min(Math.max(0, currentRepeatCount), safeIntervals.length - 1);
+  const delayMinutes = safeIntervals[nextIndex] ?? 5;
+  return new Date(now.getTime() + delayMinutes * 60 * 1000);
+}

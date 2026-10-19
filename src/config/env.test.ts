@@ -3,7 +3,7 @@ import { isAdmin, readEnv } from "./env.js";
 
 describe("env configuration", () => {
   const validMockEnv = {
-    TG_BOT_TOKEN: "123456789:AAHD9nHvSRVGQU5pbDai9mLwcDtFctei51s",
+    TG_BOT_TOKEN: "1234567890:AAFakeMockTokenForTestingPurposes00000",
     TG_ADMIN_USER_IDS: "359079621, 261171441",
     DEFAULT_GROUP_CHAT_ID: "4301185075",
     DEFAULT_RECIPIENT_USER_ID: "915156343",
@@ -13,7 +13,7 @@ describe("env configuration", () => {
 
   it("parses valid configuration successfully", () => {
     const config = readEnv(validMockEnv);
-    expect(config.TG_BOT_TOKEN).toBe("123456789:AAHD9nHvSRVGQU5pbDai9mLwcDtFctei51s");
+    expect(config.TG_BOT_TOKEN).toBe("1234567890:AAFakeMockTokenForTestingPurposes00000");
     expect(config.TG_ADMIN_USER_IDS).toEqual([359079621, 261171441]);
     expect(config.DEFAULT_GROUP_CHAT_ID).toBe(-1004301185075);
     expect(config.DEFAULT_RECIPIENT_USER_ID).toBe(915156343);
