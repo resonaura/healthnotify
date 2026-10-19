@@ -152,6 +152,8 @@ export class ReminderService {
       destinationType?: DestinationType;
       targetUserIds?: number[];
       activeStatus?: ActiveStatus;
+      maxAutoRepeatCount?: number;
+      autoRepeatIntervals?: number[];
     },
     actorUserId: number,
   ): Promise<ReminderDefinition | null> {
@@ -169,6 +171,12 @@ export class ReminderService {
       def.targetUserIdsJson = JSON.stringify(patch.targetUserIds);
     }
     if (patch.activeStatus !== undefined) def.activeStatus = patch.activeStatus;
+    if (patch.maxAutoRepeatCount !== undefined) {
+      def.maxAutoRepeatCount = patch.maxAutoRepeatCount;
+    }
+    if (patch.autoRepeatIntervals !== undefined) {
+      def.autoRepeatIntervalsJson = JSON.stringify(patch.autoRepeatIntervals);
+    }
 
     const saved = await this.defRepo.save(def);
 
@@ -185,12 +193,36 @@ export class ReminderService {
       }
     }
 
-    await this.historyService.logEvent(`def-${id}`, id, 0, actorUserId, "resumed", {
+    await this.historyService.logEvent(`def-${id}`, id, 0, actorUserId, "updated", {
       action: "updated",
       patch,
     });
 
     return saved;
+  }
+
+  public async toggleAutoRepeat(id: number, actorUserId: number): Promise<boolean> {
+    const def = await this.getReminder(id);
+    if (!def) return false;
+
+    if (def.maxAutoRepeatCount > 0) {
+      def.maxAutoRepeatCount = 0;
+      def.autoRepeatIntervalsJson = "[]";
+    } else {
+      def.maxAutoRepeatCount = 4;
+      def.autoRepeatIntervalsJson = JSON.stringify([5, 10, 20, 40]);
+    }
+
+    await this.defRepo.save(def);
+    await this.historyService.logEvent(`def-${id}`, id, 0, actorUserId, "updated", {
+      action: "toggleAutoRepeat",
+      maxAutoRepeatCount: def.maxAutoRepeatCount,
+    });
+    return def.maxAutoRepeatCount > 0;
+  }
+
+  public async saveReminderDefinition(def: ReminderDefinition): Promise<ReminderDefinition> {
+    return this.defRepo.save(def);
   }
 
   public async populateOccurrencesForDefinition(

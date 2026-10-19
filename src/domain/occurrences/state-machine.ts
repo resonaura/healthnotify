@@ -8,6 +8,7 @@ export const TERMINAL_STATUSES: readonly OccurrenceStatus[] = [
   "COMPLETED",
   "SKIPPED",
   "MISSED",
+  "UNKNOWN",
   "CANCELLED",
 ] as const;
 
@@ -16,12 +17,13 @@ export function isTerminalStatus(status: OccurrenceStatus): boolean {
 }
 
 const ALLOWED_TRANSITIONS: Record<OccurrenceStatus, readonly OccurrenceStatus[]> = {
-  SCHEDULED: ["PENDING", "MISSED", "CANCELLED"],
-  PENDING: ["COMPLETED", "SNOOZED", "SKIPPED", "PENDING", "MISSED", "CANCELLED"],
-  SNOOZED: ["COMPLETED", "SKIPPED", "PENDING", "CANCELLED"],
+  SCHEDULED: ["PENDING", "MISSED", "UNKNOWN", "CANCELLED"],
+  PENDING: ["COMPLETED", "SNOOZED", "SKIPPED", "PENDING", "MISSED", "UNKNOWN", "CANCELLED"],
+  SNOOZED: ["COMPLETED", "SKIPPED", "PENDING", "CANCELLED", "UNKNOWN"],
   COMPLETED: [],
   SKIPPED: [],
   MISSED: [],
+  UNKNOWN: [],
   CANCELLED: [],
 };
 
@@ -114,6 +116,13 @@ export class OccurrenceStateMachine {
     occ.status = "MISSED";
     occ.missedAtUtc = missedAt;
     occ.updatedAt = missedAt;
+  }
+
+  public static markUnknown(occ: ReminderOccurrence, unknownAt: Date = new Date()): void {
+    this.assertCanTransition(occ.status, "UNKNOWN", occ.id);
+    occ.status = "UNKNOWN";
+    occ.missedAtUtc = unknownAt;
+    occ.updatedAt = unknownAt;
   }
 
   public static markCancelled(occ: ReminderOccurrence, cancelledAt: Date = new Date()): void {

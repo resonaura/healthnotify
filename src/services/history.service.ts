@@ -92,7 +92,7 @@ export class HistoryService {
     for (const occ of occurrences) {
       if (occ.status === "COMPLETED") completed++;
       if (occ.status === "SKIPPED") skipped++;
-      if (occ.status === "MISSED") missed++;
+      if (occ.status === "MISSED" || occ.status === "UNKNOWN") missed++;
       snoozes += occ.snoozeCount;
     }
 

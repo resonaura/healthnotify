@@ -43,7 +43,7 @@ describe("OccurrenceStateMachine", () => {
     expect(isTerminalStatus(occ.status)).toBe(true);
   });
 
-  it("handles SKIPPED and MISSED terminal transitions", () => {
+  it("handles SKIPPED, MISSED, and UNKNOWN terminal transitions", () => {
     const occ1 = makeOccurrence();
     OccurrenceStateMachine.markPending(occ1, -1004301185075, 100);
     OccurrenceStateMachine.markSkipped(occ1);
@@ -55,6 +55,12 @@ describe("OccurrenceStateMachine", () => {
     OccurrenceStateMachine.markMissed(occ2);
     expect(occ2.status).toBe("MISSED");
     expect(isTerminalStatus(occ2.status)).toBe(true);
+
+    const occ3 = makeOccurrence();
+    OccurrenceStateMachine.markPending(occ3, -1004301185075, 102);
+    OccurrenceStateMachine.markUnknown(occ3);
+    expect(occ3.status).toBe("UNKNOWN");
+    expect(isTerminalStatus(occ3.status)).toBe(true);
   });
 
   it("handles CANCELLED transition from SCHEDULED and PENDING", () => {
@@ -90,6 +96,7 @@ describe("OccurrenceStateMachine", () => {
     expect(() => OccurrenceStateMachine.markSnoozed(occ, new Date())).toThrow(ConflictError);
     expect(() => OccurrenceStateMachine.markSkipped(occ)).toThrow(ConflictError);
     expect(() => OccurrenceStateMachine.markMissed(occ)).toThrow(ConflictError);
+    expect(() => OccurrenceStateMachine.markUnknown(occ)).toThrow(ConflictError);
   });
 
   it("strictly forbids invalid non-terminal transitions (ValidationError)", () => {

@@ -6,8 +6,9 @@ export function assertCanActOnOccurrence(
   userId: number,
   targetUserId: number,
   occurrenceId: string,
+  isAdmin = false,
 ): void {
-  if (userId !== targetUserId) {
+  if (userId !== targetUserId && !isAdmin) {
     throw new ForbiddenError(
       `User ${userId} is not authorized to act on occurrence ${occurrenceId} intended for ${targetUserId}`,
     );

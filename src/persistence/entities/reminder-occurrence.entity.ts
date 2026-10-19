@@ -1,7 +1,14 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
 
 export type OccurrenceStatus =
-  "SCHEDULED" | "PENDING" | "SNOOZED" | "COMPLETED" | "SKIPPED" | "MISSED" | "CANCELLED";
+  | "SCHEDULED"
+  | "PENDING"
+  | "SNOOZED"
+  | "COMPLETED"
+  | "SKIPPED"
+  | "MISSED"
+  | "UNKNOWN"
+  | "CANCELLED";
 
 @Entity("reminder_occurrences")
 @Index(["status", "dueAtUtc"])

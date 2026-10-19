@@ -14,6 +14,17 @@ export function calculateRepeat(
   referenceTimeUtc: Date,
   now: Date = new Date(),
 ): RepeatResult {
+  if (maxRepeatCount <= 0) {
+    return {
+      allowed: false,
+      repeatCount: currentRepeatCount,
+      delayMinutes: 0,
+      nextDueAtUtc: now,
+      deadlinePassed: true,
+      reason: "Auto-repeats disabled",
+    };
+  }
+
   const safeIntervals = intervals.length > 0 ? intervals : [5, 10, 20, 40];
 
   if (currentRepeatCount >= maxRepeatCount) {
@@ -45,7 +56,18 @@ export function calculateNextFollowUpDueAt(
   maxRepeatCount: number,
   intervals: number[],
   now: Date = new Date(),
+  timeoutMinutes = 60,
 ): Date {
+  if (maxRepeatCount <= 0 || intervals.length === 0) {
+    // When auto-repeats are disabled, wait timeoutMinutes (default 1 hour) before marking Unknown
+    return new Date(now.getTime() + timeoutMinutes * 60 * 1000);
+  }
+
+  if (currentRepeatCount >= maxRepeatCount) {
+    // Final follow-up expired: give 1 hour timeout for reaction before marking Unknown
+    return new Date(now.getTime() + timeoutMinutes * 60 * 1000);
+  }
+
   const safeIntervals = intervals.length > 0 ? intervals : [5, 10, 20, 40];
   const nextIndex = Math.min(Math.max(0, currentRepeatCount), safeIntervals.length - 1);
   const delayMinutes = safeIntervals[nextIndex] ?? 5;

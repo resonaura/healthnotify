@@ -30,6 +30,7 @@ export interface TelegramApi {
 export function buildActionKeyboard(occurrenceId: string, lang: Locale = "ru"): InlineKeyboard {
   return new InlineKeyboard()
     .text(t(lang, "btn_done"), `act:d:${occurrenceId}`)
+    .row()
     .text(t(lang, "btn_later"), `act:s:${occurrenceId}`)
     .text(t(lang, "btn_skip"), `act:k:${occurrenceId}`);
 }
@@ -255,6 +256,26 @@ export class DeliveryService {
       skippedTime: skippedTimeStr,
     });
 
+    const updatedText = `${originalText}${statusPart}`;
+
+    try {
+      await this.api.editMessageText(chatId, messageId, updatedText, {
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: [] },
+      });
+    } catch {
+      await this.deactivateButtons(chatId, messageId);
+    }
+  }
+
+  public async updateCardOnUnknown(
+    chatId: number,
+    messageId: number,
+    originalText: string,
+    timezone: string,
+    lang: Locale = "ru",
+  ): Promise<void> {
+    const statusPart = t(lang, "reminder_status_unknown");
     const updatedText = `${originalText}${statusPart}`;
 
     try {

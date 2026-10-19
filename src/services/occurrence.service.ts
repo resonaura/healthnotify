@@ -68,15 +68,25 @@ export class OccurrenceService {
         .getMany();
 
       for (const oldOcc of activePreceding) {
-        OccurrenceStateMachine.markMissed(oldOcc, now);
+        OccurrenceStateMachine.markUnknown(oldOcc, now);
         await this.occRepo.save(oldOcc);
         if (oldOcc.activeMessageChatId && oldOcc.activeMessageId) {
-          await this.deliveryService.deactivateButtons(
+          const baseText = buildReminderMessageText(
+            def,
+            oldOcc,
+            targetUser,
+            oldOcc.activeMessageChatId,
+            lang,
+          );
+          await this.deliveryService.updateCardOnUnknown(
             oldOcc.activeMessageChatId,
             oldOcc.activeMessageId,
+            baseText,
+            def.timezone,
+            lang,
           );
         }
-        await this.historyService.logEvent(oldOcc.id, def.id, oldOcc.targetUserId, 0, "missed", {
+        await this.historyService.logEvent(oldOcc.id, def.id, oldOcc.targetUserId, 0, "unknown", {
           reason: "superceded_by_consecutive_occurrence",
         });
       }
@@ -200,19 +210,29 @@ export class OccurrenceService {
           await this.recordAttempt(occ.id, targetChatId, "repeat", "failed", null, errMsg);
         }
       } else {
-        // Max repeats reached and deadline passed -> MISSED
-        OccurrenceStateMachine.markMissed(occ, now);
+        // Max repeats reached or auto-repeats disabled and deadline passed -> UNKNOWN
+        OccurrenceStateMachine.markUnknown(occ, now);
         await this.occRepo.save(occ);
 
         if (occ.activeMessageChatId && occ.activeMessageId) {
-          await this.deliveryService.deactivateButtons(
+          const baseText = buildReminderMessageText(
+            def,
+            occ,
+            targetUser,
+            occ.activeMessageChatId,
+            lang,
+          );
+          await this.deliveryService.updateCardOnUnknown(
             occ.activeMessageChatId,
             occ.activeMessageId,
+            baseText,
+            def.timezone,
+            lang,
           );
         }
 
-        await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, 0, "missed", {
-          reason: "max_repeats_exhausted",
+        await this.historyService.logEvent(occ.id, def.id, occ.targetUserId, 0, "unknown", {
+          reason: def.maxAutoRepeatCount === 0 ? "timeout_no_reaction" : "max_repeats_exhausted",
         });
       }
     }
@@ -235,8 +255,9 @@ export class OccurrenceService {
         throw new NotFoundError(`Occurrence ${occurrenceId} not found`);
       }
 
-      // Check authorization: only the targeted user can perform actions
-      assertCanActOnOccurrence(userId, occ.targetUserId, occurrenceId);
+      // Check authorization: targeted user or admin can perform actions
+      const isAdminUser = user?.role === "ADMIN";
+      assertCanActOnOccurrence(userId, occ.targetUserId, occurrenceId, isAdminUser);
 
       // Check source message freshness: prevent clicking obsolete cards from before an auto-repeat or re-send
       if (sourceMessageId && occ.activeMessageId && sourceMessageId !== occ.activeMessageId) {
@@ -246,8 +267,8 @@ export class OccurrenceService {
         throw new ConflictError(t(lang, "reminder_card_outdated"));
       }
 
-      // If occurrence is already completed / skipped / missed / cancelled
-      if (["COMPLETED", "SKIPPED", "MISSED", "CANCELLED"].includes(occ.status)) {
+      // If occurrence is already completed / skipped / missed / unknown / cancelled
+      if (["COMPLETED", "SKIPPED", "MISSED", "UNKNOWN", "CANCELLED"].includes(occ.status)) {
         throw new ConflictError(t(lang, "reminder_already_handled"));
       }
 

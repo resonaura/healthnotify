@@ -51,6 +51,22 @@ export class RemindersMenu extends Menu {
         },
       );
 
+      const repeatsEnabled = (rule.maxAutoRepeatCount ?? 0) > 0;
+      const toggleRepeatsBtn = new Button(
+        repeatsEnabled
+          ? t(ctx.lang, "btn_toggle_repeats_off")
+          : t(ctx.lang, "btn_toggle_repeats_on"),
+        async (actionCtx) => {
+          await this.reminderService.toggleAutoRepeat(rule.id, actionCtx.userId);
+          await actionCtx.rawCtx.reply(
+            repeatsEnabled
+              ? t(actionCtx.lang, "msg_repeats_disabled")
+              : t(actionCtx.lang, "msg_repeats_enabled"),
+          );
+          await actionCtx.navigateTo(this.name);
+        },
+      );
+
       const editTitleBtn = new Button(t(ctx.lang, "btn_edit_title"), async (actionCtx) => {
         await this.settings.set(
           `reminder_edit_${actionCtx.userId}`,
@@ -81,7 +97,7 @@ export class RemindersMenu extends Menu {
       });
 
       this.buttons = [
-        [togglePauseBtn],
+        [togglePauseBtn, toggleRepeatsBtn],
         [editTitleBtn, editTimesBtn],
         [archiveBtn],
         [backToListBtn],

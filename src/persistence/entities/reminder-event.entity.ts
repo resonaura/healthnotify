@@ -8,9 +8,11 @@ export type ReminderEventType =
   | "completed"
   | "skipped"
   | "missed"
+  | "unknown"
   | "cancelled"
   | "paused"
   | "resumed"
+  | "updated"
   | "delivery_failed"
   | "unauthorized_click";
 

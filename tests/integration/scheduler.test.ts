@@ -192,7 +192,7 @@ describe("Scheduler & Occurrence Integration", () => {
     expect(mockApi.editedTexts[mockApi.editedTexts.length - 1]?.text).toContain("Выполнено");
   });
 
-  it("handles auto-repeat progression and declares MISSED when limits exhausted", async () => {
+  it("handles auto-repeat progression and declares UNKNOWN when limits exhausted", async () => {
     const def = await reminderService.createReminder(
       {
         title: "Evening Pill",
@@ -245,11 +245,11 @@ describe("Scheduler & Occurrence Integration", () => {
     expect(occRep2.repeatCount).toBe(2);
     expect(mockApi.sentMessages).toHaveLength(3);
 
-    // Max repeats reached -> next tick declares MISSED
-    const t3 = new Date("2026-10-19T17:25:00.000Z");
+    // Max repeats reached -> 1h reaction timeout expires -> declares UNKNOWN
+    const t3 = new Date("2026-10-19T18:16:00.000Z");
     await worker.tick(t3);
-    const occMissed = (await occRepo.findOneBy({ id: occ.id }))!;
-    expect(occMissed.status).toBe("MISSED");
+    const occUnknown = (await occRepo.findOneBy({ id: occ.id }))!;
+    expect(occUnknown.status).toBe("UNKNOWN");
   });
 
   it("handles consecutive occurrence: closes unhandled morning occurrence when evening arrives", async () => {
@@ -287,8 +287,8 @@ describe("Scheduler & Occurrence Integration", () => {
     const morningAfter = (await occRepo.findOneBy({ id: morningOcc.id }))!;
     const eveningAfter = (await occRepo.findOneBy({ id: eveningOcc.id }))!;
 
-    // Morning occurrence must have been closed as MISSED by consecutive occurrence policy
-    expect(morningAfter.status).toBe("MISSED");
+    // Morning occurrence must have been closed as UNKNOWN by consecutive occurrence policy
+    expect(morningAfter.status).toBe("UNKNOWN");
     // Evening occurrence is now the active PENDING reminder
     expect(eveningAfter.status).toBe("PENDING");
   });

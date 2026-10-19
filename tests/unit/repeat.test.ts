@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { calculateRepeat } from "../../src/domain/occurrences/repeat.js";
+import {
+  calculateNextFollowUpDueAt,
+  calculateRepeat,
+} from "../../src/domain/occurrences/repeat.js";
 
 describe("calculateRepeat", () => {
   const intervals = [5, 10, 20, 40];
@@ -35,6 +38,13 @@ describe("calculateRepeat", () => {
     expect(res.reason).toBe("Maximum auto-repeat count reached");
   });
 
+  it("handles disabled auto-repeats when maxRepeats is 0", () => {
+    const res = calculateRepeat(0, 0, intervals, deliveryTime);
+    expect(res.allowed).toBe(false);
+    expect(res.deadlinePassed).toBe(true);
+    expect(res.reason).toBe("Auto-repeats disabled");
+  });
+
   it("falls back to default intervals if empty array passed", () => {
     const res = calculateRepeat(0, maxRepeats, [], deliveryTime);
     expect(res.allowed).toBe(true);
@@ -45,5 +55,11 @@ describe("calculateRepeat", () => {
     const res = calculateRepeat(0, maxRepeats, [undefined as any], deliveryTime);
     expect(res.allowed).toBe(true);
     expect(res.delayMinutes).toBe(5);
+  });
+
+  it("calculates next follow-up due date with 1h timeout when repeats disabled", () => {
+    const now = new Date("2026-10-19T06:00:00.000Z");
+    const followUp = calculateNextFollowUpDueAt(0, 0, [], now);
+    expect(followUp.getTime() - now.getTime()).toBe(60 * 60 * 1000);
   });
 });

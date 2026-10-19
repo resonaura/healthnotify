@@ -94,6 +94,7 @@ describe("Menu UI Unit Tests", () => {
       listReminders: vi.fn().mockResolvedValue([activeDef]),
       pauseReminder: vi.fn().mockResolvedValue(true),
       resumeReminder: vi.fn().mockResolvedValue(true),
+      toggleAutoRepeat: vi.fn().mockResolvedValue(true),
     } as unknown as ReminderService;
 
     const store = new Map<string, string>();
@@ -120,6 +121,10 @@ describe("Menu UI Unit Tests", () => {
     await menu.onInit(mockContext);
     await menu.buttons[0]![0]!.action!(mockContext);
     expect(mockReminderService.pauseReminder).toHaveBeenCalledWith(1, mockContext.userId);
+
+    // Toggle auto-repeats in detail view
+    await menu.buttons[0]![1]!.action!(mockContext);
+    expect(mockReminderService.toggleAutoRepeat).toHaveBeenCalledWith(1, mockContext.userId);
 
     // On message renders reminder details
     await menu.onMessage(mockContext);

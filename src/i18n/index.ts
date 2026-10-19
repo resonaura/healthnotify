@@ -71,6 +71,7 @@ export const translations = {
     reminder_status_completed: "\n\n✅ _Выполнено в {completedTime}_",
     reminder_status_skipped: "\n\n❌ _Пропущено в {skippedTime}_",
     reminder_status_missed: "\n\n⚠️ _Не выполнено (истёк срок ожидания)_",
+    reminder_status_unknown: "\n\n❓ _Статус: Не подтверждено (неизвестно)_",
     reminder_status_cancelled: "\n\n🚫 _Напоминание отменено_",
 
     // Popups & Feedback
@@ -116,6 +117,10 @@ export const translations = {
     btn_archive_rule: "🗑 Архивировать",
     btn_snooze_intervals: "🕒 Изменить Snooze",
     btn_repeat_intervals: "🔄 Изменить Repeat",
+    btn_toggle_repeats_on: "🔄 Включить повторы",
+    btn_toggle_repeats_off: "🔄 Выключить повторы (1 сообщение)",
+    msg_repeats_disabled: "🔄 Повторные напоминания отключены. Бот отправит только одно сообщение.",
+    msg_repeats_enabled: "🔄 Повторные напоминания включены.",
     btn_myself: "👤 Себе",
     btn_both_recipient_and_me: "👥 {name} и Я",
     btn_all_recipients: "👥 Всем ({count})",
@@ -191,6 +196,7 @@ export const translations = {
     reminder_status_completed: "\n\n✅ _Completed at {completedTime}_",
     reminder_status_skipped: "\n\n❌ _Skipped at {skippedTime}_",
     reminder_status_missed: "\n\n⚠️ _Missed (deadline expired)_",
+    reminder_status_unknown: "\n\n❓ _Status: Unconfirmed (unknown)_",
     reminder_status_cancelled: "\n\n🚫 _Reminder cancelled_",
 
     // Popups & Feedback
@@ -236,6 +242,10 @@ export const translations = {
     btn_archive_rule: "🗑 Archive",
     btn_snooze_intervals: "🕒 Change Snooze",
     btn_repeat_intervals: "🔄 Change Repeat",
+    btn_toggle_repeats_on: "🔄 Enable repeats",
+    btn_toggle_repeats_off: "🔄 Disable repeats (1 message)",
+    msg_repeats_disabled: "🔄 Auto-repeats disabled. Only a single notification will be sent.",
+    msg_repeats_enabled: "🔄 Auto-repeats enabled.",
     btn_myself: "👤 Myself",
     btn_both_recipient_and_me: "👥 {name} & Me",
     btn_all_recipients: "👥 All ({count})",
