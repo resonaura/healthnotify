@@ -66,8 +66,7 @@ export const translations = {
     // Reminder notification text
     reminder_group_header: "🩺 Напоминание для {targetMention}",
     reminder_dm_header: "🩺 Персональное напоминание",
-    reminder_body:
-      "Пора выполнить: *{title}*{descriptionPart}\n\n⏰ Запланировано на: *{plannedTime}*",
+    reminder_body: "*{title}*{descriptionPart}\n\n⏰ Запланировано на: *{plannedTime}*",
     reminder_status_snoozed: "\n\n🕒 _Отложено до {snoozedTime} (откладывание {count})_",
     reminder_status_completed: "\n\n✅ _Выполнено в {completedTime}_",
     reminder_status_skipped: "\n\n❌ _Пропущено в {skippedTime}_",
@@ -184,8 +183,7 @@ export const translations = {
     // Reminder notification text
     reminder_group_header: "🩺 Reminder for {targetMention}",
     reminder_dm_header: "🩺 Personal Reminder",
-    reminder_body:
-      "Time to complete: *{title}*{descriptionPart}\n\n⏰ Scheduled for: *{plannedTime}*",
+    reminder_body: "*{title}*{descriptionPart}\n\n⏰ Scheduled for: *{plannedTime}*",
     reminder_status_snoozed: "\n\n🕒 _Snoozed until {snoozedTime} (snooze #{count})_",
     reminder_status_completed: "\n\n✅ _Completed at {completedTime}_",
     reminder_status_skipped: "\n\n❌ _Skipped at {skippedTime}_",

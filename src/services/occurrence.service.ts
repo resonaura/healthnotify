@@ -52,19 +52,9 @@ export class OccurrenceService {
     const def = await this.defRepo.findOneBy({ id: occ.reminderDefinitionId });
     if (!def || def.activeStatus !== "active") return;
 
-    const user = await this.userRepo.findOneBy({ id: occ.targetUserId });
-    const fallbackUser: BotUser =
-      user ??
-      ({
-        id: occ.targetUserId,
-        firstName: `User ${occ.targetUserId}`,
-        role: "USER",
-        dmActive: false,
-        language: "ru",
-        dataConsent: true,
-      } as BotUser);
-
-    const lang = (fallbackUser.language === "en" ? "en" : "ru") as Locale;
+    const targetChatId = def.destinationType === "dm" ? occ.targetUserId : def.destinationChatId;
+    const targetUser = await this.resolveTargetUser(occ.targetUserId, targetChatId);
+    const lang = (targetUser.language === "en" ? "en" : "ru") as Locale;
 
     // Consecutive occurrence policy:
     // If this is a new SCHEDULED occurrence, check if there's an older unhandled occurrence for the same rule & user.
@@ -92,15 +82,13 @@ export class OccurrenceService {
       }
     }
 
-    const targetChatId = def.destinationType === "dm" ? occ.targetUserId : def.destinationChatId;
-
     // 1. Initial delivery: SCHEDULED -> PENDING
     if (occ.status === "SCHEDULED") {
       try {
         const messageId = await this.deliveryService.sendReminderCard(
           def,
           occ,
-          fallbackUser,
+          targetUser,
           targetChatId,
           lang,
         );
@@ -139,7 +127,7 @@ export class OccurrenceService {
         const messageId = await this.deliveryService.sendReminderCard(
           def,
           occ,
-          fallbackUser,
+          targetUser,
           targetChatId,
           lang,
         );
@@ -187,7 +175,7 @@ export class OccurrenceService {
           const messageId = await this.deliveryService.sendReminderCard(
             def,
             occ,
-            fallbackUser,
+            targetUser,
             targetChatId,
             lang,
           );
@@ -236,7 +224,7 @@ export class OccurrenceService {
     userId: number,
     now: Date = new Date(),
     sourceMessageId?: number,
-    _sourceChatId?: number,
+    sourceChatId?: number,
   ): Promise<ActionResult> {
     const user = await this.userRepo.findOneBy({ id: userId });
     const lang = (user?.language === "en" ? "en" : "ru") as Locale;
@@ -252,6 +240,9 @@ export class OccurrenceService {
 
       // Check source message freshness: prevent clicking obsolete cards from before an auto-repeat or re-send
       if (sourceMessageId && occ.activeMessageId && sourceMessageId !== occ.activeMessageId) {
+        throw new ConflictError(t(lang, "reminder_card_outdated"));
+      }
+      if (sourceChatId && occ.activeMessageChatId && sourceChatId !== occ.activeMessageChatId) {
         throw new ConflictError(t(lang, "reminder_card_outdated"));
       }
 
@@ -463,5 +454,45 @@ export class OccurrenceService {
       attemptedAtUtc: new Date(),
     });
     await this.attemptRepo.save(attempt);
+  }
+
+  private async resolveTargetUser(targetUserId: number, targetChatId: number): Promise<BotUser> {
+    let user = await this.userRepo.findOneBy({ id: targetUserId });
+
+    const profile = await this.deliveryService.fetchUserProfile(targetUserId, targetChatId);
+    if (profile) {
+      if (!user) {
+        user = this.userRepo.create({
+          id: targetUserId,
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          username: profile.username,
+          role: "USER",
+          dmActive: false,
+          language: "ru",
+          dataConsent: true,
+        });
+      } else {
+        user.firstName = profile.firstName;
+        user.lastName = profile.lastName;
+        user.username = profile.username;
+      }
+      await this.userRepo.save(user);
+    }
+
+    if (!user) {
+      user = this.userRepo.create({
+        id: targetUserId,
+        firstName: `Пользователь`,
+        lastName: null,
+        username: null,
+        role: "USER",
+        dmActive: false,
+        language: "ru",
+        dataConsent: true,
+      });
+    }
+
+    return user;
   }
 }

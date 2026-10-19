@@ -6,6 +6,8 @@ export const SETTINGS = {
   menuNavPrefix: "menu_nav",
   userLangPrefix: "user_lang",
   wizardDraftPrefix: "wizard_draft",
+  snoozeIntervals: "snooze_intervals",
+  repeatIntervals: "repeat_intervals",
 } as const;
 
 export class SettingsStore {
@@ -67,5 +69,35 @@ export class SettingsStore {
 
   public async clearWizardDraft(userId: number): Promise<void> {
     await this.delete(`${SETTINGS.wizardDraftPrefix}_${userId}`);
+  }
+
+  public async getSnoozeIntervals(fallback: number[] = [5, 10, 20, 40, 60]): Promise<number[]> {
+    const raw = await this.get(SETTINGS.snoozeIntervals);
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? (parsed as number[]) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  public async setSnoozeIntervals(intervals: number[]): Promise<void> {
+    await this.set(SETTINGS.snoozeIntervals, JSON.stringify(intervals));
+  }
+
+  public async getAutoRepeatIntervals(fallback: number[] = [5, 10, 20, 40]): Promise<number[]> {
+    const raw = await this.get(SETTINGS.repeatIntervals);
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) && parsed.length > 0 ? (parsed as number[]) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  public async setAutoRepeatIntervals(intervals: number[]): Promise<void> {
+    await this.set(SETTINGS.repeatIntervals, JSON.stringify(intervals));
   }
 }

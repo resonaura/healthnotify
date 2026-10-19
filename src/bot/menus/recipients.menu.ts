@@ -25,10 +25,21 @@ export class RecipientsMenu extends Menu {
       this.users.length > 0
         ? this.users.map((u) => {
             const usernamePart = u.username ? ` (@${u.username})` : "";
-            const dmStatus = u.dmActive ? "✅ ЛС активно" : "⚠️ ЛС не начато";
-            return `👤 *${u.firstName}${usernamePart}* (ID: \`${u.id}\`)\nРоль: ${u.role} · ${dmStatus}`;
+            const dmStatus = u.dmActive
+              ? ctx.lang === "en"
+                ? "✅ DM active"
+                : "✅ ЛС активно"
+              : ctx.lang === "en"
+                ? "⚠️ DM not started"
+                : "⚠️ ЛС не начато";
+            const roleLabel = ctx.lang === "en" ? "Role" : "Роль";
+            return `👤 *${u.firstName}${usernamePart}* (ID: \`${u.id}\`)\n${roleLabel}: ${u.role} · ${dmStatus}`;
           })
-        : ["_Пока нет зарегистрированных пользователей._"];
+        : [
+            ctx.lang === "en"
+              ? "_No registered users yet._"
+              : "_Пока нет зарегистрированных пользователей._",
+          ];
 
     await ctx.rawCtx.reply(t(ctx.lang, "recipients_header", { lines: lines.join("\n\n") }), {
       ...this.getKeyboard(),

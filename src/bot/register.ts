@@ -126,12 +126,27 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
         });
         await userRepo.save(newUser);
         logger.info(`Registered new user ${from.id} (${from.first_name})`);
-      } else if (isDm && !existing.dmActive) {
-        existing.dmActive = true;
-        if (from.username) existing.username = from.username;
-        existing.firstName = from.first_name;
-        existing.lastName = from.last_name ?? null;
-        await userRepo.save(existing);
+      } else {
+        let updated = false;
+        if (from.first_name && existing.firstName !== from.first_name) {
+          existing.firstName = from.first_name;
+          updated = true;
+        }
+        if (existing.lastName !== (from.last_name ?? null)) {
+          existing.lastName = from.last_name ?? null;
+          updated = true;
+        }
+        if (existing.username !== (from.username ?? null)) {
+          existing.username = from.username ?? null;
+          updated = true;
+        }
+        if (isDm && !existing.dmActive) {
+          existing.dmActive = true;
+          updated = true;
+        }
+        if (updated) {
+          await userRepo.save(existing);
+        }
       }
     }
 
@@ -184,14 +199,17 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
     const occurrenceId = ctx.match[2]!;
     const fromId = ctx.from.id;
 
-    const occ = await occRepo.findOneBy({ id: occurrenceId });
-    if (!occ) {
-      await ctx.answerCallbackQuery({ text: "⚠️ Напоминание не найдено.", show_alert: true });
-      return;
-    }
-
     const user = await userRepo.findOneBy({ id: fromId });
     const lang = (user?.language === "en" ? "en" : "ru") as Locale;
+
+    const occ = await occRepo.findOneBy({ id: occurrenceId });
+    if (!occ) {
+      await ctx.answerCallbackQuery({
+        text: lang === "en" ? "⚠️ Reminder not found." : "⚠️ Напоминание не найдено.",
+        show_alert: true,
+      });
+      return;
+    }
 
     // Strict Authorization check: only targeted user can click
     if (fromId !== occ.targetUserId) {
@@ -243,6 +261,11 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await ctx.answerCallbackQuery({ text: msg, show_alert: true });
+      try {
+        await ctx.editMessageReplyMarkup({ reply_markup: { inline_keyboard: [] } });
+      } catch {
+        // Ignored if Telegram rate limits or cannot edit
+      }
     }
   });
 
@@ -281,7 +304,9 @@ export function registerBotHandlers(options: RegisterBotOptions): MenuSystem {
     if (ctx.chat?.type !== "private") return;
     if (!ctx.from || !isAdmin(ctx.from.id, env)) return;
     await settings.clearWizardDraft(ctx.from.id);
-    await ctx.reply("Действие отменено.");
+    const user = await userRepo.findOneBy({ id: ctx.from.id });
+    const lang = (user?.language === "en" ? "en" : "ru") as Locale;
+    await ctx.reply(lang === "en" ? "Action cancelled." : "Действие отменено.");
     await adminMenuSystem.navigateTo(ctx, "MainMenu");
   });
 

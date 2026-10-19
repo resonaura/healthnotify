@@ -33,10 +33,18 @@ export class RemindersMenu extends Menu {
         async (actionCtx) => {
           if (isPaused) {
             await this.reminderService.resumeReminder(rule.id, actionCtx.userId);
-            await actionCtx.rawCtx.reply(`▶️ Напоминание #${rule.id} возобновлено.`);
+            await actionCtx.rawCtx.reply(
+              actionCtx.lang === "en"
+                ? `▶️ Reminder #${rule.id} resumed.`
+                : `▶️ Напоминание #${rule.id} возобновлено.`,
+            );
           } else {
             await this.reminderService.pauseReminder(rule.id, actionCtx.userId);
-            await actionCtx.rawCtx.reply(`⏸ Напоминание #${rule.id} приостановлено.`);
+            await actionCtx.rawCtx.reply(
+              actionCtx.lang === "en"
+                ? `⏸ Reminder #${rule.id} paused.`
+                : `⏸ Напоминание #${rule.id} приостановлено.`,
+            );
           }
           await actionCtx.navigateTo(this.name);
         },
@@ -118,19 +126,31 @@ export class RemindersMenu extends Menu {
       if (rule) {
         const statusStr =
           rule.activeStatus === "active"
-            ? "🟢 Активно"
+            ? ctx.lang === "en"
+              ? "🟢 Active"
+              : "🟢 Активно"
             : rule.activeStatus === "paused"
-              ? "⏸ На паузе"
-              : "🗑 В архиве";
+              ? ctx.lang === "en"
+                ? "⏸ Paused"
+                : "⏸ На паузе"
+              : ctx.lang === "en"
+                ? "🗑 Archived"
+                : "🗑 В архиве";
         const timesStr = rule.getTimesOfDay().join(", ");
         const dates = rule.endDate
           ? `${rule.startDate} — ${rule.endDate}`
-          : `с ${rule.startDate} (бессрочно)`;
+          : ctx.lang === "en"
+            ? `from ${rule.startDate} (indefinite)`
+            : `с ${rule.startDate} (бессрочно)`;
         const recipients = rule.getTargetUserIds().join(", ");
         const destination =
           rule.destinationType === "dm"
-            ? "Личные сообщения (ЛС)"
-            : `Группа (ID: ${rule.destinationChatId})`;
+            ? ctx.lang === "en"
+              ? "Direct Messages (DM to each)"
+              : "Личные сообщения (ЛС каждому)"
+            : ctx.lang === "en"
+              ? `Group (ID: ${rule.destinationChatId})`
+              : `Группа (ID: ${rule.destinationChatId})`;
 
         await ctx.rawCtx.reply(
           t(ctx.lang, "reminders_detail_header", {
@@ -166,8 +186,12 @@ export class RemindersMenu extends Menu {
       const timesStr = rule.getTimesOfDay().join(", ");
       const dates = rule.endDate
         ? `${rule.startDate} — ${rule.endDate}`
-        : `с ${rule.startDate} (бессрочно)`;
-      return `📌 *#${rule.id} ${statusIcon} ${rule.title}*\nВремя: ${timesStr} (${rule.timezone})\nПериод: ${dates}`;
+        : ctx.lang === "en"
+          ? `from ${rule.startDate} (indefinite)`
+          : `с ${rule.startDate} (бессрочно)`;
+      const timeLabel = ctx.lang === "en" ? "Time" : "Время";
+      const periodLabel = ctx.lang === "en" ? "Period" : "Период";
+      return `📌 *#${rule.id} ${statusIcon} ${rule.title}*\n${timeLabel}: ${timesStr} (${rule.timezone})\n${periodLabel}: ${dates}`;
     });
 
     await ctx.rawCtx.reply(t(ctx.lang, "reminders_list_header", { lines: lines.join("\n\n") }), {
@@ -210,7 +234,9 @@ export class RemindersMenu extends Menu {
           return true;
         } else {
           await ctx.rawCtx.reply(
-            "⚠️ Неверный формат времени. Введите время в формате HH:mm, например «06:00, 20:00».",
+            ctx.lang === "en"
+              ? "⚠️ Invalid time format. Enter times in HH:mm format, e.g. '06:00, 20:00'."
+              : "⚠️ Неверный формат времени. Введите время в формате HH:mm, например «06:00, 20:00».",
           );
           return true;
         }

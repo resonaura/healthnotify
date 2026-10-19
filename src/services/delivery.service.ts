@@ -23,6 +23,8 @@ export interface TelegramApi {
     messageId: number,
     other?: Record<string, unknown>,
   ): Promise<unknown>;
+  getChat?(chatId: number): Promise<unknown>;
+  getChatMember?(chatId: number, userId: number): Promise<unknown>;
 }
 
 export function buildActionKeyboard(occurrenceId: string, lang: Locale = "ru"): InlineKeyboard {
@@ -39,11 +41,14 @@ export function buildSnoozedKeyboard(occurrenceId: string, lang: Locale = "ru"):
 }
 
 export function formatTargetMention(user: BotUser): string {
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   if (user.username) {
-    return `@${user.username}`;
+    return fullName && fullName !== `@${user.username}`
+      ? `[${fullName}](tg://user?id=${user.id}) (@${user.username})`
+      : `@${user.username}`;
   }
-  const name = user.firstName + (user.lastName ? ` ${user.lastName}` : "");
-  return `[${name}](tg://user?id=${user.id})`;
+  const displayName = fullName || `Пользователь`;
+  return `[${displayName}](tg://user?id=${user.id})`;
 }
 
 export function buildReminderMessageText(
@@ -70,7 +75,46 @@ export function buildReminderMessageText(
 }
 
 export class DeliveryService {
-  constructor(private readonly api: TelegramApi) {}
+  constructor(public readonly api: TelegramApi) {}
+
+  public async fetchUserProfile(
+    userId: number,
+    chatId?: number,
+  ): Promise<{ firstName: string; lastName: string | null; username: string | null } | null> {
+    if (this.api.getChat) {
+      try {
+        const chat = (await this.api.getChat(userId)) as
+          { first_name?: string; last_name?: string; username?: string } | undefined;
+        if (chat && typeof chat.first_name === "string") {
+          return {
+            firstName: chat.first_name,
+            lastName: chat.last_name ?? null,
+            username: chat.username ?? null,
+          };
+        }
+      } catch {
+        // getChat can fail if user hasn't DM'd bot
+      }
+    }
+
+    if (chatId && chatId < 0 && this.api.getChatMember) {
+      try {
+        const member = (await this.api.getChatMember(chatId, userId)) as
+          { user?: { first_name?: string; last_name?: string; username?: string } } | undefined;
+        if (member?.user && typeof member.user.first_name === "string") {
+          return {
+            firstName: member.user.first_name,
+            lastName: member.user.last_name ?? null,
+            username: member.user.username ?? null,
+          };
+        }
+      } catch {
+        // member not found or bot lacks permissions
+      }
+    }
+
+    return null;
+  }
 
   public async sendReminderCard(
     definition: ReminderDefinition,

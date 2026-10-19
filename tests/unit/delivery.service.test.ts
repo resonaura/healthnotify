@@ -14,7 +14,7 @@ describe("DeliveryService Unit", () => {
     userWithUsername.id = 12345;
     userWithUsername.username = "father_tg";
     userWithUsername.firstName = "Father";
-    expect(formatTargetMention(userWithUsername)).toBe("@father_tg");
+    expect(formatTargetMention(userWithUsername)).toBe("[Father](tg://user?id=12345) (@father_tg)");
 
     const userNoUsernameWithLast = new BotUser();
     userNoUsernameWithLast.id = 67890;

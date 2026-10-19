@@ -27,7 +27,9 @@ export class ChatsMenu extends Menu {
     const list: string[] = [];
 
     if (this.defaultGroupChatId) {
-      list.push(`⭐ *Основная семейная группа*: \`${this.defaultGroupChatId}\``);
+      const label =
+        ctx.lang === "en" ? "⭐ *Primary Family Group*" : "⭐ *Основная семейная группа*";
+      list.push(`${label}: \`${this.defaultGroupChatId}\``);
     }
 
     for (const c of this.chats) {
@@ -37,7 +39,9 @@ export class ChatsMenu extends Menu {
     }
 
     if (list.length === 0) {
-      list.push("_Нет привязанных групп доставки._");
+      list.push(
+        ctx.lang === "en" ? "_No delivery groups connected._" : "_Нет привязанных групп доставки._",
+      );
     }
 
     await ctx.rawCtx.reply(t(ctx.lang, "chats_header", { lines: list.join("\n\n") }), {
