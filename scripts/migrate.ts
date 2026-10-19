@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { closeDataSource, getDataSource } from "../src/persistence/data-source.js";
 
 async function main(): Promise<void> {
