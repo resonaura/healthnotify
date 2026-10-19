@@ -365,6 +365,10 @@ _Goal: Resolve final sprint audit points: transactional atomicity for events, me
   - _DoD_: Migrate `ecosystem.config.cjs` to declarative `ecosystem.config.json` with 0 CommonJS dependencies.
   - _Status_: `VERIFIED`
   - _Evidence_: `ecosystem.config.json` created, validated, deployed.
+- [x] **Task 11.6**: Interval Recurrence & Multi-Time Natural Language Parser.
+  - _DoD_: Support interval schedules (e.g. every 2 days / alternate days, every 3 days, weekly) with multiple configurable times per day. Add natural language parser supporting Russian and English phrases (e.g. "В 6 утра и 8 вечера", "6 и 20", "каждые 4 часа", "утром и вечером") in both creation wizard and reminder editing.
+  - _Status_: `VERIFIED`
+  - _Evidence_: `tests/unit/recurrence.test.ts` (tested 2-day and 3-day intervals with multiple daily occurrences and 5 parser scenarios).
 
 ---
 

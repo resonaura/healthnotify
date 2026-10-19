@@ -2,6 +2,7 @@ import { t } from "../../i18n/index.js";
 import type { ReminderDefinition } from "../../persistence/entities/reminder-definition.entity.js";
 import type { SettingsStore } from "../../persistence/settings.store.js";
 import type { ReminderService } from "../../services/reminder.service.js";
+import { parseTimesInput } from "../../shared/time.js";
 import { Button, Menu, type MenuActionContext } from "../menu-system.js";
 
 export class RemindersMenu extends Menu {
@@ -152,12 +153,34 @@ export class RemindersMenu extends Menu {
               ? `Group (ID: ${rule.destinationChatId})`
               : `Группа (ID: ${rule.destinationChatId})`;
 
+        const scheduleStr =
+          rule.scheduleType === "weekdays"
+            ? ctx.lang === "en"
+              ? "Weekdays (Mon-Fri)"
+              : "По будням (Пн-Пт)"
+            : rule.scheduleType === "once"
+              ? ctx.lang === "en"
+                ? "Once"
+                : "Однократно"
+              : rule.scheduleType === "interval"
+                ? rule.getIntervalDays() === 2
+                  ? ctx.lang === "en"
+                    ? "Every 2 days (alt. days)"
+                    : "Раз в 2 дня (через день)"
+                  : ctx.lang === "en"
+                    ? `Every ${rule.getIntervalDays()} days`
+                    : `Раз в ${rule.getIntervalDays()} дн.`
+                : ctx.lang === "en"
+                  ? "Daily"
+                  : "Каждый день";
+
         await ctx.rawCtx.reply(
           t(ctx.lang, "reminders_detail_header", {
             id: rule.id,
             title: rule.title,
             category: rule.category,
             status: statusStr,
+            schedule: scheduleStr,
             times: timesStr,
             timezone: rule.timezone,
             dates,
@@ -217,10 +240,7 @@ export class RemindersMenu extends Menu {
           return true;
         }
       } else if (editState.field === "times") {
-        const times = trimmed
-          .split(",")
-          .map((s) => s.trim())
-          .filter((t) => /^([01]\d|2[0-3]):[0-5]\d$/u.test(t));
+        const times = parseTimesInput(trimmed);
 
         if (times.length > 0) {
           await this.reminderService.updateReminder(
@@ -235,8 +255,8 @@ export class RemindersMenu extends Menu {
         } else {
           await ctx.rawCtx.reply(
             ctx.lang === "en"
-              ? "⚠️ Invalid time format. Enter times in HH:mm format, e.g. '06:00, 20:00'."
-              : "⚠️ Неверный формат времени. Введите время в формате HH:mm, например «06:00, 20:00».",
+              ? "⚠️ Could not understand times. Enter times in format '06:00, 20:00' or '6am and 8pm' or '6 and 20'."
+              : "⚠️ Не удалось распознать время. Введите время в формате «06:00, 20:00» или «В 6 утра и 8 вечера» или «6 и 20».",
           );
           return true;
         }

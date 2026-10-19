@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generateOccurrenceCandidates } from "../../src/scheduler/recurrence.js";
 import { ReminderDefinition } from "../../src/persistence/entities/reminder-definition.entity.js";
+import { parseTimesInput } from "../../src/shared/time.js";
 
 describe("recurrence generator", () => {
   it("generates exactly 28 occurrences for 14 days, 2 times daily, 1 user", () => {
@@ -102,5 +103,74 @@ describe("recurrence generator", () => {
 
     const candidates = generateOccurrenceCandidates(def, "2026-10-25", "2026-10-20");
     expect(candidates).toHaveLength(0);
+  });
+
+  it("supports interval schedule every 2 days with multiple times per day", () => {
+    const def = new ReminderDefinition();
+    def.id = 6;
+    def.title = "Take Probiotics";
+    def.createdByUserId = 359079621;
+    def.targetUserIdsJson = JSON.stringify([915156343]);
+    def.scheduleType = "interval";
+    def.daysOfWeekJson = JSON.stringify([2]); // Every 2 days
+    def.timesOfDayJson = JSON.stringify(["06:00", "20:00"]); // 2 times per day
+    def.timezone = "America/Vancouver";
+    def.startDate = "2026-10-19";
+    def.endDate = "2026-10-25"; // 7 days (19th, 21st, 23rd, 25th = 4 active days)
+
+    const candidates = generateOccurrenceCandidates(def, "2026-10-19", "2026-10-25");
+    // 4 active days * 2 times = 8 occurrences
+    expect(candidates).toHaveLength(8);
+
+    // Verify first day occurrences on 2026-10-19 (Pacific Daylight Time UTC-7)
+    // 06:00 PDT -> 13:00 UTC, 20:00 PDT -> 03:00 UTC next day
+    expect(candidates[0]?.plannedAtUtc.toISOString()).toBe("2026-10-19T13:00:00.000Z");
+    expect(candidates[1]?.plannedAtUtc.toISOString()).toBe("2026-10-20T03:00:00.000Z");
+  });
+
+  it("supports interval schedule every 3 days with 3 times per day", () => {
+    const def = new ReminderDefinition();
+    def.id = 7;
+    def.title = "Measure Temperature";
+    def.createdByUserId = 359079621;
+    def.targetUserIdsJson = JSON.stringify([915156343]);
+    def.scheduleType = "interval";
+    def.daysOfWeekJson = JSON.stringify([3]); // Every 3 days
+    def.timesOfDayJson = JSON.stringify(["08:00", "14:00", "20:00"]);
+    def.timezone = "America/Vancouver";
+    def.startDate = "2026-10-19";
+    def.endDate = "2026-10-25"; // 7 days: day 0 (19th), day 3 (22nd), day 6 (25th) = 3 active days
+
+    const candidates = generateOccurrenceCandidates(def, "2026-10-19", "2026-10-25");
+    // 3 active days * 3 times = 9 occurrences
+    expect(candidates).toHaveLength(9);
+  });
+});
+
+describe("parseTimesInput natural language parsing", () => {
+  it("parses informal Russian times like 'В 6 утра и 8 вечера'", () => {
+    const times = parseTimesInput("В 6 утра и 8 вечера");
+    expect(times).toEqual(["06:00", "20:00"]);
+  });
+
+  it("parses short numbers '6 и 20'", () => {
+    const times = parseTimesInput("6 и 20");
+    expect(times).toEqual(["06:00", "20:00"]);
+  });
+
+  it("parses Russian presets like 'каждые 4 часа'", () => {
+    expect(parseTimesInput("каждые 4 часа")).toEqual(["08:00", "12:00", "16:00", "20:00"]);
+    expect(parseTimesInput("3 раза в день")).toEqual(["08:00", "14:00", "20:00"]);
+    expect(parseTimesInput("утром и вечером")).toEqual(["08:00", "20:00"]);
+  });
+
+  it("parses English 12h formats like '6am and 8pm' or '8:30am, 9:15pm'", () => {
+    expect(parseTimesInput("6am and 8pm")).toEqual(["06:00", "20:00"]);
+    expect(parseTimesInput("8:30am, 9:15pm")).toEqual(["08:30", "21:15"]);
+  });
+
+  it("parses standard 24-hour comma-separated formats", () => {
+    expect(parseTimesInput("06:00, 20:00")).toEqual(["06:00", "20:00"]);
+    expect(parseTimesInput("08:00, 14:00, 20:00")).toEqual(["08:00", "14:00", "20:00"]);
   });
 });

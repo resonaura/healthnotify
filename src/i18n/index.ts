@@ -94,7 +94,7 @@ export const translations = {
     wizard_step_timezone: "Шаг 6 из 10: Часовой пояс\n\nВыберите часовой пояс расписания:",
     wizard_step_schedule_type: "Шаг 7 из 10: Тип расписания\n\nВыберите периодичность:",
     wizard_step_times:
-      "Шаг 8 из 10: Время суток\n\nУкажите время (например: «06:00, 20:00» для двух раз в день):",
+      "Шаг 8 из 10: Время суток\n\nУкажите время (например: «06:00, 20:00» или «В 6 утра и 8 вечера»):",
     wizard_step_duration:
       "Шаг 9 из 10: Продолжительность\n\nУкажите срок действия (например: «14 дней» или «бессрочно»):",
     wizard_step_preview:
@@ -107,7 +107,7 @@ export const translations = {
     reminders_empty:
       "📭 Напоминаний пока нет.\n\nНажмите «➕ Создать напоминание», чтобы добавить первое.",
     reminders_detail_header:
-      "📌 *Детали напоминания #{id}*\n\nНазвание: *{title}*\nКатегория: {category}\nСтатус: {status}\nВремя: {times} ({timezone})\nПериод: {dates}\nПолучатели: {recipients}\nКанал доставки: {destination}\nSnooze интервалы: {snooze}\nRepeat интервалы: {repeat}",
+      "📌 *Детали напоминания #{id}*\n\nНазвание: *{title}*\nКатегория: {category}\nСтатус: {status}\nПериодичность: {schedule}\nВремя: {times} ({timezone})\nПериод: {dates}\nПолучатели: {recipients}\nКанал доставки: {destination}\nSnooze интервалы: {snooze}\nRepeat интервалы: {repeat}",
     btn_pause_rule: "⏸ Приостановить",
     btn_resume_rule: "▶️ Возобновить",
     btn_delete_rule: "🗑 Удалить",
@@ -119,7 +119,8 @@ export const translations = {
     btn_both_father_and_me: "👨‍👩‍👧 Отец и Я",
     btn_to_dm_each: "💬 Личные сообщения (ЛС каждому)",
     prompt_edit_title: "✏️ Введите новое название для напоминания #{id}:",
-    prompt_edit_times: "⏰ Введите новое время суток (например: «06:00, 20:00»):",
+    prompt_edit_times:
+      "⏰ Введите новое время суток (например: «06:00, 20:00» или «В 6 утра и 8 вечера»):",
     reminder_updated_success: "✅ Напоминание #{id} успешно обновлено!",
     confirm_delete:
       "⚠️ Вы уверены, что хотите удалить напоминание «{title}»?\nИстория предыдущих выполнений сохранится.",
@@ -211,7 +212,7 @@ export const translations = {
     wizard_step_timezone: "Step 6 of 10: Timezone\n\nSelect schedule timezone:",
     wizard_step_schedule_type: "Step 7 of 10: Schedule Frequency\n\nChoose recurrence type:",
     wizard_step_times:
-      "Step 8 of 10: Times of Day\n\nEnter times (e.g. '06:00, 20:00' for twice daily):",
+      "Step 8 of 10: Times of Day\n\nEnter times (e.g. '06:00, 20:00' or '6am and 8pm'):",
     wizard_step_duration:
       "Step 9 of 10: Duration\n\nEnter duration (e.g. '14 days' or 'indefinite'):",
     wizard_step_preview:
@@ -224,7 +225,7 @@ export const translations = {
     reminders_empty:
       "📭 No reminders configured yet.\n\nClick '➕ Create Reminder' to add your first one.",
     reminders_detail_header:
-      "📌 *Reminder Details #{id}*\n\nTitle: *{title}*\nCategory: {category}\nStatus: {status}\nTimes: {times} ({timezone})\nPeriod: {dates}\nRecipients: {recipients}\nDestination: {destination}\nSnooze intervals: {snooze}\nRepeat intervals: {repeat}",
+      "📌 *Reminder Details #{id}*\n\nTitle: *{title}*\nCategory: {category}\nStatus: {status}\nSchedule: {schedule}\nTimes: {times} ({timezone})\nPeriod: {dates}\nRecipients: {recipients}\nDestination: {destination}\nSnooze intervals: {snooze}\nRepeat intervals: {repeat}",
     btn_pause_rule: "⏸ Pause",
     btn_resume_rule: "▶️ Resume",
     btn_delete_rule: "🗑 Delete",
@@ -236,7 +237,7 @@ export const translations = {
     btn_both_father_and_me: "👨‍👩‍👧 Father & Me",
     btn_to_dm_each: "💬 Direct Messages (DM to each)",
     prompt_edit_title: "✏️ Enter new title for reminder #{id}:",
-    prompt_edit_times: "⏰ Enter new times (e.g. '06:00, 20:00'):",
+    prompt_edit_times: "⏰ Enter new times (e.g. '06:00, 20:00' or '6am and 8pm'):",
     reminder_updated_success: "✅ Reminder #{id} successfully updated!",
     confirm_delete:
       "⚠️ Are you sure you want to delete '{title}'?\nHistorical occurrences will remain preserved.",

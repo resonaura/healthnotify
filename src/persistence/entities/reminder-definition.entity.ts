@@ -103,6 +103,11 @@ export class ReminderDefinition {
     }
   }
 
+  public getIntervalDays(): number {
+    const days = this.getDaysOfWeek();
+    return days && days.length === 1 && days[0] && days[0] > 0 ? days[0] : 1;
+  }
+
   public getSnoozeIntervals(): number[] {
     try {
       return JSON.parse(this.snoozeIntervalsJson) as number[];

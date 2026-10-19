@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ReminderDefinition } from "../persistence/entities/reminder-definition.entity.js";
 import { ReminderOccurrence } from "../persistence/entities/reminder-occurrence.entity.js";
-import { addDaysToDate, localTimeToUtc } from "../shared/time.js";
+import { addDaysToDate, daysBetween, localTimeToUtc } from "../shared/time.js";
 
 export function getDayOfWeekNumber(dateStr: string): number {
   const [year, month, day] = dateStr.split("-").map(Number);
@@ -37,6 +37,15 @@ export function generateOccurrenceCandidates(
     if (definition.scheduleType === "weekdays" && allowedDays && allowedDays.length > 0) {
       const dayOfWeek = getDayOfWeekNumber(currentDate);
       if (!allowedDays.includes(dayOfWeek)) {
+        currentDate = addDaysToDate(currentDate, 1);
+        continue;
+      }
+    }
+
+    if (definition.scheduleType === "interval") {
+      const intervalDays = definition.getIntervalDays();
+      const diffDays = daysBetween(definition.startDate, currentDate);
+      if (diffDays < 0 || diffDays % intervalDays !== 0) {
         currentDate = addDaysToDate(currentDate, 1);
         continue;
       }

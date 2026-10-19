@@ -8,7 +8,7 @@ import type {
 } from "../../persistence/entities/reminder-definition.entity.js";
 import type { SettingsStore } from "../../persistence/settings.store.js";
 import type { ReminderService } from "../../services/reminder.service.js";
-import { addDaysToDate, getTodayDateInZone } from "../../shared/time.js";
+import { addDaysToDate, getTodayDateInZone, parseTimesInput } from "../../shared/time.js";
 import { Button, Menu, type MenuActionContext } from "../menu-system.js";
 
 export type WizardStep =
@@ -190,6 +190,18 @@ export class WizardMenu extends Menu {
           ),
         ],
         [
+          new Button(
+            ctx.lang === "en" ? "🔄 Every 2 days (alt. days)" : "🔄 Раз в 2 дня (через день)",
+            (act) => this.handleScheduleType(act, "interval", 2),
+          ),
+          new Button(ctx.lang === "en" ? "🔄 Every 3 days" : "🔄 Раз в 3 дня", (act) =>
+            this.handleScheduleType(act, "interval", 3),
+          ),
+        ],
+        [
+          new Button(ctx.lang === "en" ? "📆 Weekly (Once a week)" : "📆 Раз в неделю", (act) =>
+            this.handleScheduleType(act, "interval", 7),
+          ),
           new Button(ctx.lang === "en" ? "🎯 Once" : "🎯 Однократно", (act) =>
             this.handleScheduleType(act, "once"),
           ),
@@ -200,12 +212,29 @@ export class WizardMenu extends Menu {
       this.buttons = [
         [
           new Button(
-            ctx.lang === "en" ? "06:00, 20:00 (morning & evening)" : "06:00, 20:00 (утро и вечер)",
+            ctx.lang === "en"
+              ? "🌅 06:00, 20:00 (morning & evening)"
+              : "🌅 06:00, 20:00 (6 утра и 8 вечера)",
             (act) => this.handleTimes(act, "06:00, 20:00"),
           ),
         ],
-        [new Button("08:00, 14:00, 20:00", (act) => this.handleTimes(act, "08:00, 14:00, 20:00"))],
-        [new Button("09:00", (act) => this.handleTimes(act, "09:00"))],
+        [
+          new Button(
+            ctx.lang === "en"
+              ? "💊 08:00, 14:00, 20:00 (3x/day)"
+              : "💊 08:00, 14:00, 20:00 (3 раза в день)",
+            (act) => this.handleTimes(act, "08:00, 14:00, 20:00"),
+          ),
+        ],
+        [
+          new Button(ctx.lang === "en" ? "☀️ 09:00 (1x/day)" : "☀️ 09:00 (1 раз в день)", (act) =>
+            this.handleTimes(act, "09:00"),
+          ),
+          new Button(
+            ctx.lang === "en" ? "⏱ Every 4h (08,12,16,20)" : "⏱ Каждые 4ч (08,12,16,20)",
+            (act) => this.handleTimes(act, "08:00, 12:00, 16:00, 20:00"),
+          ),
+        ],
         [cancelBtn],
       ];
     } else if (draft.step === "duration") {
@@ -299,6 +328,43 @@ export class WizardMenu extends Menu {
         return true;
       }
     }
+    if (draft.step === "schedule_type") {
+      const lower = trimmed.toLowerCase();
+      if (lower.includes("будн") || lower.includes("weekdays")) {
+        await this.handleScheduleType(ctx, "weekdays");
+        return true;
+      } else if (lower.includes("однократ") || lower.includes("разов") || lower.includes("once")) {
+        await this.handleScheduleType(ctx, "once");
+        return true;
+      } else if (
+        lower.includes("раз в 3") ||
+        lower.includes("каждые 3") ||
+        lower.includes("3 дня")
+      ) {
+        await this.handleScheduleType(ctx, "interval", 3);
+        return true;
+      } else if (
+        lower.includes("раз в недел") ||
+        lower.includes("еженедел") ||
+        lower.includes("weekly") ||
+        lower.includes("7 дн")
+      ) {
+        await this.handleScheduleType(ctx, "interval", 7);
+        return true;
+      } else if (
+        lower.includes("через день") ||
+        lower.includes("раз в 2") ||
+        lower.includes("каждые 2") ||
+        lower.includes("2 дня") ||
+        lower.includes("every 2")
+      ) {
+        await this.handleScheduleType(ctx, "interval", 2);
+        return true;
+      } else {
+        await this.handleScheduleType(ctx, "daily");
+        return true;
+      }
+    }
     if (draft.step === "times") {
       await this.handleTimes(ctx, trimmed);
       return true;
@@ -365,26 +431,28 @@ export class WizardMenu extends Menu {
     await ctx.navigateTo(this.name);
   }
 
-  private async handleScheduleType(ctx: MenuActionContext, type: ScheduleType): Promise<void> {
+  private async handleScheduleType(
+    ctx: MenuActionContext,
+    type: ScheduleType,
+    intervalDays?: number,
+  ): Promise<void> {
     const draft = await this.getOrCreateDraft(ctx.userId);
     draft.scheduleType = type;
-    draft.daysOfWeek = type === "weekdays" ? [1, 2, 3, 4, 5] : null;
+    draft.daysOfWeek =
+      type === "weekdays" ? [1, 2, 3, 4, 5] : type === "interval" ? [intervalDays ?? 2] : null;
     draft.step = "times";
     await this.settings.setWizardDraft(ctx.userId, draft);
     await ctx.navigateTo(this.name);
   }
 
   private async handleTimes(ctx: MenuActionContext, timesStr: string): Promise<void> {
-    const times = timesStr
-      .split(",")
-      .map((s) => s.trim())
-      .filter((t) => /^([01]\d|2[0-3]):[0-5]\d$/u.test(t));
+    const times = parseTimesInput(timesStr);
 
     if (times.length === 0) {
       await ctx.rawCtx.reply(
         ctx.lang === "en"
-          ? "⚠️ Invalid time format. Enter times in HH:mm format, e.g. '06:00, 20:00'."
-          : "⚠️ Неверный формат времени. Введите время в формате HH:mm, например «06:00, 20:00».",
+          ? "⚠️ Could not understand times. Enter times in format '06:00, 20:00' or '6am and 8pm' or '6 and 20'."
+          : "⚠️ Не удалось распознать время. Введите время в формате «06:00, 20:00» или «В 6 утра и 8 вечера» или «6 и 20».",
       );
       return;
     }
@@ -404,6 +472,9 @@ export class WizardMenu extends Menu {
     if (
       durationStr === "forever" ||
       durationStr.toLowerCase().includes("бессрочно") ||
+      durationStr.toLowerCase().includes("рекурринг") ||
+      durationStr.toLowerCase().includes("постоян") ||
+      durationStr.toLowerCase().includes("всегда") ||
       durationStr.toLowerCase().includes("indefinite")
     ) {
       draft.endDate = null;
@@ -473,12 +544,33 @@ export class WizardMenu extends Menu {
         ? `from ${draft.startDate} (indefinite)`
         : `с ${draft.startDate} (бессрочно)`;
     const recipients = draft.targetUserIds?.map((id) => `\`${id}\``).join(", ") ?? "—";
+    const schedule =
+      draft.scheduleType === "weekdays"
+        ? lang === "en"
+          ? "Weekdays (Mon-Fri)"
+          : "По будням (Пн-Пт)"
+        : draft.scheduleType === "once"
+          ? lang === "en"
+            ? "Once"
+            : "Однократно"
+          : draft.scheduleType === "interval"
+            ? draft.daysOfWeek?.[0] === 2
+              ? lang === "en"
+                ? "Every 2 days (alt. days)"
+                : "Раз в 2 дня (через день)"
+              : lang === "en"
+                ? `Every ${draft.daysOfWeek?.[0] ?? 1} days`
+                : `Раз в ${draft.daysOfWeek?.[0] ?? 1} дн.`
+            : lang === "en"
+              ? "Daily"
+              : "Каждый день";
 
     return (
       `📌 *${draft.title}*${desc}\n` +
       `🏷 _Категория_: ${draft.category}\n` +
       `👥 _Получатели_: ${recipients}\n` +
       `💬 _Канал доставки_: ${dest}\n` +
+      `🗓 _Периодичность_: ${schedule}\n` +
       `⏰ _Время суток_: ${times} (${draft.timezone})\n` +
       `📅 _Срок_: ${dur}`
     );
