@@ -8,7 +8,11 @@ import type {
   ScheduleType,
 } from "../../persistence/entities/reminder-definition.entity.js";
 import type { SettingsStore } from "../../persistence/settings.store.js";
-import type { DeliveryService } from "../../services/delivery.service.js";
+import {
+  type DeliveryService,
+  getUserDisplayName,
+  isOtetsIvanovich,
+} from "../../services/delivery.service.js";
 import type { ReminderService } from "../../services/reminder.service.js";
 import { addDaysToDate, getTodayDateInZone, parseTimesInput } from "../../shared/time.js";
 import { Button, Menu, type MenuActionContext } from "../menu-system.js";
@@ -166,13 +170,7 @@ export class WizardMenu extends Menu {
 
       const otherUsers = allCandidates.filter((u) => u.id !== ctx.userId);
       for (const u of otherUsers) {
-        const fullName = [u.firstName, u.lastName].filter(Boolean).join(" ");
-        const displayName =
-          fullName && fullName !== "Отец"
-            ? fullName
-            : u.username
-              ? `@${u.username}`
-              : `ID: ${u.id}`;
+        const displayName = getUserDisplayName(u);
         userButtons.push(
           new Button(`👤 ${displayName}`, (act) => this.handleRecipient(act, [u.id])),
         );
@@ -184,12 +182,7 @@ export class WizardMenu extends Menu {
 
       if (otherUsers.length === 1) {
         const singleOther = otherUsers[0]!;
-        const otherName =
-          singleOther.firstName && singleOther.firstName !== "Отец"
-            ? singleOther.firstName
-            : singleOther.username
-              ? `@${singleOther.username}`
-              : `ID: ${singleOther.id}`;
+        const otherName = getUserDisplayName(singleOther);
         rows.push([
           new Button(t(ctx.lang, "btn_both_recipient_and_me", { name: otherName }), (act) =>
             this.handleRecipient(act, [singleOther.id, act.userId]),
@@ -490,7 +483,7 @@ export class WizardMenu extends Menu {
   private async tryResolveAndCacheUserProfile(userId: number): Promise<void> {
     try {
       const existing = await this.userRepo.findOneBy({ id: userId });
-      if (existing && existing.firstName && existing.firstName !== "Отец") return;
+      if (existing && existing.firstName && !isOtetsIvanovich(existing)) return;
 
       const chats = await this.chatRepo.find({ where: { isActive: true }, take: 5 });
       let resolved: { firstName: string; lastName: string | null; username: string | null } | null =
@@ -670,12 +663,9 @@ export class WizardMenu extends Menu {
         ? draft.targetUserIds
             .map((id) => {
               const u = usersMap.get(id);
-              const fullName = u ? [u.firstName, u.lastName].filter(Boolean).join(" ") : null;
-              if (fullName && fullName !== "Отец") {
-                return `${fullName} (\`${id}\`)`;
-              }
-              if (u?.username) {
-                return `@${u.username} (\`${id}\`)`;
+              if (u) {
+                const name = getUserDisplayName(u);
+                return `${name} (\`${id}\`)`;
               }
               return `\`${id}\``;
             })

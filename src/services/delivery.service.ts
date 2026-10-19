@@ -40,7 +40,54 @@ export function buildSnoozedKeyboard(occurrenceId: string, lang: Locale = "ru"):
     .text(t(lang, "btn_skip"), `act:k:${occurrenceId}`);
 }
 
+export function isOtetsIvanovich(
+  user: { firstName?: string | null; lastName?: string | null; id?: number } | null | undefined,
+): boolean {
+  if (!user) return false;
+  const fullName = [user.firstName, user.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim()
+    .replace(/\s+/g, " ");
+
+  if (/^отец\s+иванович$/iu.test(fullName) || /^отец$/iu.test(fullName)) {
+    return true;
+  }
+
+  // Exception purely for this user (915156343)
+  if (
+    user.id === 915156343 &&
+    (/отец/iu.test(fullName) || /михаил/iu.test(fullName) || fullName === "Mike")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function getUserDisplayName(
+  u:
+    | {
+        firstName?: string | null;
+        lastName?: string | null;
+        username?: string | null;
+        id?: number;
+      }
+    | null
+    | undefined,
+): string {
+  if (!u) return "Пользователь";
+  if (isOtetsIvanovich(u)) return "Mike";
+  const fullName = [u.firstName, u.lastName].filter(Boolean).join(" ").trim();
+  if (fullName && !fullName.toLowerCase().startsWith("отец")) return fullName;
+  if (u.username) return `@${u.username}`;
+  return u.id ? `ID: ${u.id}` : "Пользователь";
+}
+
 export function formatTargetMention(user: BotUser): string {
+  if (isOtetsIvanovich(user)) {
+    return `[Mike](tg://user?id=${user.id})`;
+  }
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
   if (user.username) {
     return fullName && fullName !== `@${user.username}`

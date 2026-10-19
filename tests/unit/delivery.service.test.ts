@@ -26,6 +26,21 @@ describe("DeliveryService Unit", () => {
     userFirstOnly.id = 11111;
     userFirstOnly.firstName = "Alice";
     expect(formatTargetMention(userFirstOnly)).toBe("[Alice](tg://user?id=11111)");
+
+    // Special exception for user signed as "Отец Иванович" -> Mike
+    const userOtetsIvanovich = new BotUser();
+    userOtetsIvanovich.id = 99999;
+    userOtetsIvanovich.firstName = "Отец";
+    userOtetsIvanovich.lastName = "Иванович";
+    userOtetsIvanovich.username = "father_ivan";
+    expect(formatTargetMention(userOtetsIvanovich)).toBe("[Mike](tg://user?id=99999)");
+
+    // Purely for user 915156343 exception
+    const user915 = new BotUser();
+    user915.id = 915156343;
+    user915.firstName = "Михаил";
+    user915.lastName = "Ткаченко";
+    expect(formatTargetMention(user915)).toBe("[Mike](tg://user?id=915156343)");
   });
 
   it("handles sendReminderCard for DM and group chats with/without description", async () => {

@@ -1,6 +1,7 @@
 import type { Repository } from "typeorm";
 import { t } from "../../i18n/index.js";
 import type { BotUser } from "../../persistence/entities/bot-user.entity.js";
+import { getUserDisplayName } from "../../services/delivery.service.js";
 import { Button, Menu, type MenuActionContext } from "../menu-system.js";
 
 export class RecipientsMenu extends Menu {
@@ -24,6 +25,7 @@ export class RecipientsMenu extends Menu {
     const lines =
       this.users.length > 0
         ? this.users.map((u) => {
+            const name = getUserDisplayName(u);
             const usernamePart = u.username ? ` (@${u.username})` : "";
             const dmStatus = u.dmActive
               ? ctx.lang === "en"
@@ -33,7 +35,7 @@ export class RecipientsMenu extends Menu {
                 ? "⚠️ DM not started"
                 : "⚠️ ЛС не начато";
             const roleLabel = ctx.lang === "en" ? "Role" : "Роль";
-            return `👤 *${u.firstName}${usernamePart}* (ID: \`${u.id}\`)\n${roleLabel}: ${u.role} · ${dmStatus}`;
+            return `👤 *${name}${usernamePart}* (ID: \`${u.id}\`)\n${roleLabel}: ${u.role} · ${dmStatus}`;
           })
         : [
             ctx.lang === "en"
