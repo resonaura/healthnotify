@@ -1,0 +1,321 @@
+# HealthNotify — Project Implementation & Verification Plan (PLAN.md)
+
+> **Living Project Document**
+> This document tracks requirements, architectural decisions, implementation milestones, task definitions of done (DoD), test evidence, and explicit user approvals for the **Telegram Health Reminder Bot**.
+
+---
+
+## 1. Project Goal
+
+Design, build, test, document, and publish a production-grade, highly reliable Telegram Health Reminder Bot. The bot enables caregivers (Admins) to manage personalized health and medication reminders (e.g. taking blood pressure daily at 06:00 and 20:00 for 14 days) delivered to individuals in private chats (DM) or family groups, featuring actionable inline buttons (`[✅ Done]`, `[🕒 Later]`, `[❌ Skip]`), progressive snooze, auto-repeat on ignore, strict per-user authorization, persistent crash-recovery scheduling, and health history tracking.
+
+---
+
+## 2. Requirements & Scope Summary
+
+### Functional Requirements
+
+- **Admin Management (DM only)**: Role-based admin menu directly replicating the proven `donnmemes` UX architecture (persistent reply keyboards, navigation state in DB, wizard flow).
+- **Rule Configuration**: Single rule for multiple daily times (e.g. 06:00 & 20:00) over a duration (e.g. 14 days) or indefinite; assignable to one or multiple recipients.
+- **Delivery Channels**: Private DM (requires onboarding) and pre-authorized Telegram groups (with explicit target user mention).
+- **Independent Occurrences**: If a rule targets multiple users, each recipient gets an independent occurrence with their own status and buttons.
+- **Inline Action Buttons**: `[✅ Done]`, `[🕒 Later]`, `[❌ Skip]`.
+- **Target Authorization Guard**: Group buttons can only be clicked by the targeted user. Unauthorized clicks trigger a non-disruptive popup alert (`answerCallbackQuery`) and log a security audit event; no group spam, no state change.
+- **Progressive Snooze**: Configurable progression (5m -> 10m -> 20m -> 40m -> 60m). Old message shows `"🕒 Snoozed until HH:mm"` while keeping `[✅ Done]` and `[❌ Skip]` accessible. When snooze time arrives, previous buttons are deactivated and a fresh card is sent.
+- **Auto-Repeat on Ignore**: Configurable retry intervals. Old buttons deactivated when new card is sent.
+- **Occurrence Lifecycle & Inactivity Deadline**: Transition to `MISSED` when max repeats are exhausted and occurrence deadline expires. Next scheduled occurrence closes previous unhandled occurrences as `MISSED`.
+- **Interactive Setup**: `npm run setup` using `@inquirer/prompts` to configure `.env` safely without leaking secrets.
+- **Health History & Privacy**: Tracks completion rates, response delays, and optional structured measurements (blood pressure systolic/diastolic/pulse). Sensitive metrics are strictly private (DM only, never exposed in group chats).
+- **Full Internationalization (i18n)**: Russian (`ru`) and English (`en`) with typed dictionaries and correct pluralization.
+
+### Non-Functional Requirements
+
+- **Runtime**: Node.js 24+, pure native ECMAScript Modules (`"type": "module"`).
+- **Language**: TypeScript (latest stable, strict mode, no `any`, no unsafe type assertions).
+- **Framework**: grammY.
+- **Database**: SQLite with `better-sqlite3`, WAL mode, TypeORM with programmatic migrations (`synchronize: false` in production).
+- **Scheduler**: Persistence-backed SQLite worker (no in-memory only timers, crash-resilient, catch-up policy).
+- **Code Quality**: Oxlint for linting, Prettier for formatting, Vitest for unit/integration/scenario tests.
+- **Documentation**: English README matching user's existing GitHub repositories style (`haus`, `snappie`, `donnmemes`).
+- **CI / GitHub**: GitHub Actions workflow, `gh` CLI repository publishing.
+
+---
+
+## 3. Architecture & Design Decisions
+
+- **ADR-1**: Native Node.js ESM + TypeScript compilation with `NodeNext` module resolution.
+- **ADR-2**: 1:1 Architectural Port of `donnmemes` Menu System (`MenuSystem`, `Menu`, `Button`, `SettingsStore`).
+- **ADR-3**: Persistence-backed SQLite Scheduler with atomic job claiming and configurable catch-up recovery.
+- **ADR-4**: Strongly-typed dictionary-based i18n (`ru`/`en`) with compile-time key verification and correct Russian pluralization.
+- **ADR-5**: Independent `ReminderOccurrence` entity per target user to ensure strict per-person accountability.
+
+Detailed specification is recorded in [ARCHITECTURE.md](file:///Users/resonaura/healthnotify/docs/ARCHITECTURE.md).
+
+---
+
+## 4. Status Legend
+
+- `NOT STARTED`: Task not yet begun.
+- `IN PROGRESS`: Task is actively being implemented.
+- `IMPLEMENTED`: Code has been written.
+- `VERIFIED`: Automated tests and checks pass; verified by assistant.
+- `APPROVED`: Explicitly reviewed and confirmed by user.
+- `BLOCKED`: Work cannot proceed due to external blocker.
+
+---
+
+## 5. Implementation Milestones
+
+### Phase 0: Research & Architecture
+
+_Goal: Deep inspection of existing project, GitHub style, stack verification, and formal architecture specification._
+
+- [x] **Task 0.1**: Inspect `/Users/resonaura/donnmemes` (menu system, navigation, settings, i18n, setup).
+  - _DoD_: Full understanding of menu architecture, lifecycle, and patterns.
+  - _Status_: `VERIFIED`
+  - _Evidence_: Inspected `menu-system.ts`, `menus.ts`, `register.ts`, `settings.ts`, `env.ts`, `setup.ts`, `data-source.ts`.
+- [x] **Task 0.2**: Inspect user's existing GitHub repositories (`snappie`, `haus`, `donnmemes`) via `gh`.
+  - _DoD_: Identification of README formatting, badges, topics, licensing, and documentation style.
+  - _Status_: `VERIFIED`
+  - _Evidence_: `gh repo list`, examined `haus` and `snappie` README headers, badges, and structure.
+- [x] **Task 0.3**: Verify tech stack compatibility with Node 24 and native ESM.
+  - _DoD_: `better-sqlite3`, `typeorm`, `grammy`, `zod`, `oxlint`, `prettier`, `vitest` installed and validated in test runs.
+  - _Status_: `VERIFIED`
+  - _Evidence_: Installed packages, verified SQLite WAL in ESM and TypeORM DataSource initialization.
+- [ ] **Task 0.4**: Formalize Architecture Specification (`docs/ARCHITECTURE.md`) and create `PLAN.md`.
+  - _DoD_: Complete system design, entity diagrams, FSM, scheduler rules, and milestones documented.
+  - _Status_: `VERIFIED` (Awaiting User Approval)
+  - _Evidence_: `docs/ARCHITECTURE.md` and root `PLAN.md` written.
+
+---
+
+### Phase 1: Project Foundation & Tooling
+
+_Goal: Solid, typed ESM project setup with zero compiler, linter, or formatting warnings._
+
+- [ ] **Task 1.1**: Configure `package.json`, `tsconfig.json` (NodeNext, strict, decorators), `.gitignore`, and npm scripts.
+  - _DoD_: `build`, `typecheck`, `lint`, `format`, `test` scripts defined and functional.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 1.2**: Implement typed environment configuration with Zod (`src/config/env.ts`) and tests (`src/config/env.test.ts`).
+  - _DoD_: Validates Bot token, Admin User IDs, SQLite path, timezone, and repeat/snooze defaults.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 1.3**: Implement structured logger (`src/shared/logger.ts`) with secret masking and error hierarchy (`src/shared/errors.ts`).
+  - _DoD_: Bot tokens and sensitive values masked in output; domain errors typed.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 1.4**: Implement interactive setup CLI (`scripts/setup.ts`, `npm run setup`) using `@inquirer/prompts`.
+  - _DoD_: Safely prompts for Bot Token, tests it with Telegram API, queries Admin IDs, timezone, writes `.env` with 0600 permissions without exposing secrets.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 1.5**: Implement typed i18n dictionary system (`src/i18n/index.ts`, `src/i18n/index.test.ts`) with `ru` and `en`.
+  - _DoD_: Complete translations for all menus, actions, statuses, with Russian pluralization tests.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 2: Persistence Layer & Migrations
+
+_Goal: Resilient SQLite database layer with TypeORM entities, WAL mode, programmatic migrations, and SettingsStore._
+
+- [ ] **Task 2.1**: Define TypeORM entities (`AppSetting`, `BotUser`, `RegisteredChat`, `ReminderDefinition`, `ReminderOccurrence`, `DeliveryAttempt`, `ReminderEvent`, `HealthMeasurement`).
+  - _DoD_: All fields, constraints, relations, and indexes defined matching ARCHITECTURE.md.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 2.2**: Configure `DataSource` with `better-sqlite3`, WAL pragma, foreign keys, and programmatic migration runner (`src/persistence/data-source.ts`).
+  - _DoD_: `synchronize: false` in production; migrations apply cleanly and idempotently.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 2.3**: Write initial database migration (`src/persistence/migrations/001_initial_schema.ts`).
+  - _DoD_: Creates all tables, unique constraints, and indexes. Tested on fresh database.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 2.4**: Implement `SettingsStore` (`src/persistence/settings.store.ts`) and integration tests.
+  - _DoD_: Matches `donnmemes` key-value persistence for navigation, locales, and app settings.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 3: Reminder Domain & Formal State Machine
+
+_Goal: Deterministic finite state machine for occurrence lifecycle, authorization, snooze progression, and audit events._
+
+- [ ] **Task 3.1**: Implement `OccurrenceStateMachine` (`src/domain/occurrences/state-machine.ts`).
+  - _DoD_: Transitions for `SCHEDULED` -> `PENDING` -> `SNOOZED` -> `COMPLETED`, `SKIPPED`, `MISSED`, `CANCELLED`. Disallows transitions from terminal states.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 3.2**: Implement Snooze Progression Calculator (`src/domain/occurrences/snooze.ts`).
+  - _DoD_: Calculates next due time using progressive delays (e.g. 5m -> 10m -> 20m -> 40m -> 60m), enforces max snooze count.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 3.3**: Implement Auto-Repeat Policy Calculator (`src/domain/occurrences/repeat.ts`).
+  - _DoD_: Calculates retry intervals on ignore; detects when max repeat count is reached and determines deadline for `MISSED`.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 3.4**: Implement Authorization Rules (`src/domain/users/auth.guard.ts`).
+  - _DoD_: Verifies `ctx.from.id === occurrence.targetUserId`. Allows Admin management only in DM.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 3.5**: Unit tests for Domain & State Machine (`tests/unit/state-machine.test.ts`, `tests/unit/snooze.test.ts`).
+  - _DoD_: Branch coverage $\ge 90\%$ for state machine and progression logic.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 4: Scheduler & Reliability Engine
+
+_Goal: Persistent SQLite-backed worker loop, recurrence calculator, crash recovery, and catch-up handler._
+
+- [ ] **Task 4.1**: Implement Recurrence Calculator (`src/scheduler/recurrence.ts`) with timezone and DST support.
+  - _DoD_: Computes occurrences for once, daily, weekdays, multiple times of day (e.g. 06:00 and 20:00), start/end dates.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 4.2**: Implement Persistent Scheduler Worker (`src/scheduler/worker.ts`).
+  - _DoD_: Periodically claims due occurrences atomically from SQLite, invokes delivery, handles concurrency.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 4.3**: Implement Startup Recovery & Overdue Catch-Up Engine (`src/scheduler/recovery.ts`).
+  - _DoD_: Reconciles in-flight jobs after crash; delivers occurrences within catch-up window; marks excessively overdue jobs as `MISSED`.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 4.4**: Implement Consecutive Occurrence Policy.
+  - _DoD_: When next planned time of same rule arrives, closes preceding unhandled occurrence as `MISSED` and deactivates old buttons.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 4.5**: Integration tests for Scheduler (`tests/integration/scheduler.test.ts`).
+  - _DoD_: Tests restart recovery, due job claiming, idempotency, and timezone shifts.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 5: Telegram Interface & Admin Menu System (from `donnmemes`)
+
+_Goal: 1:1 port of `donnmemes` menu architecture, interactive creation wizard, inline reminder cards, and callback dispatching._
+
+- [ ] **Task 5.1**: Port `MenuSystem`, `Menu`, `Button` (`src/bot/menu-system.ts`).
+  - _DoD_: Preserves persistent reply keyboard logic, user navigation persistence, and callback/text routing.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 5.2**: Implement Admin Menus (`MainMenu`, `RemindersMenu`, `RecipientsMenu`, `ChatsMenu`, `SettingsMenu`).
+  - _DoD_: Full navigation, listing active/paused reminders, recipient list, connected groups, language toggle.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 5.3**: Implement Reminder Creation Wizard (`src/bot/menus/wizard.menu.ts`).
+  - _DoD_: Multi-step wizard (title, desc, category, recipient, destination, timezone, times, duration, snooze policy, preview, confirm). Survives bot restart via draft persistence.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 5.4**: Implement Reminder Delivery & Keyboard Manager (`src/services/delivery.service.ts`).
+  - _DoD_: Posts card with inline buttons (`Done`, `Later`, `Skip`), mentions target user in groups, edits message on snooze (keeping `Done` and `Skip`), deactivates old buttons on repeat or completion.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 5.5**: Implement Callback Query Handler with Security Guard (`src/bot/register.ts`).
+  - _DoD_: Validates payload `act:<action>:<occurrenceId>`, verifies user, triggers FSM transition, answers callback query (with popup on unauthorized click).
+  - _Status_: `NOT STARTED`
+- [ ] **Task 5.6**: Telegram Bot E2E test double suite (`tests/e2e/bot-interaction.test.ts`).
+  - _DoD_: Tests simulated admin flow, creation wizard, inline button clicks, and unauthorized click rejection.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 6: Health History, Analytics & Measurements
+
+_Goal: Audit trail, compliance tracking, and optional private structured health measurements._
+
+- [ ] **Task 6.1**: Implement History & Statistics Service (`src/services/history.service.ts`).
+  - _DoD_: Computes completion rate (excluding pending/future occurrences), counts snoozes, average response time, breakdowns by day/week/recipient.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 6.2**: Implement Health Measurements Module (`src/services/measurement.service.ts`).
+  - _DoD_: Optional blood pressure (systolic/diastolic/pulse) recording via private DM, Zod validation, user consent check. Strictly hidden from group chats.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 6.3**: Implement Admin & User History Views in Telegram bot.
+  - _DoD_: Beautifully formatted summary cards in Telegram DM for today, past 7 days, and per-reminder stats.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 6.4**: History unit and integration tests (`tests/unit/history.test.ts`).
+  - _DoD_: Tests compliance rate math, edge cases with 0 occurrences, and privacy boundaries.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 7: Edge Cases, Reliability & Security Hardening
+
+_Goal: Rigorous verification against all 50 edge cases identified in Master Prompt._
+
+- [ ] **Task 7.1**: Implement Telegram Rate Limit & Error Handler (exponential backoff for 429 `retry_after`, group migration to supergroup, blocked bot handling).
+  - _DoD_: No crash on Telegram network errors; delivery failures logged and marked for retry.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 7.2**: Implement Concurrent Click & Idempotency Guards (double clicks, race conditions between callback and scheduler).
+  - _DoD_: Atomic SQL transactions prevent duplicate state transitions.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 7.3**: Implement Privacy & Data Protection (consent tracking, data deletion, export).
+  - _DoD_: Audit events record user actions without leaking sensitive health metrics.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 7.4**: Comprehensive Edge Cases Test Suite (`tests/integration/edge-cases.test.ts`).
+  - _DoD_: Verification of user without username, blocked bot, group migration, clock drift, double clicks.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 8: Documentation & GitHub Repository
+
+_Goal: Flawless documentation, GitHub repo matching user's existing style, CI workflows._
+
+- [ ] **Task 8.1**: Write English `README.md` following `resonaura` style (`haus`, `snappie`, `donnmemes`).
+  - _DoD_: Badges, overview, architecture diagrams, step-by-step setup, commands, reminder lifecycle, troubleshooting, MIT license.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 8.2**: Configure GitHub Actions CI workflow (`.github/workflows/ci.yml`).
+  - _DoD_: Runs typecheck, lint, format check, tests, and build on push and pull requests.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 8.3**: Initialize Git, create initial commit, create remote repo via `gh repo create` (upon visibility approval), set description and topics.
+  - _DoD_: Remote repository created, topics set, default branch pushed.
+  - _Status_: `NOT STARTED`
+
+---
+
+### Phase 9: Final Verification & Smoke Test
+
+_Goal: End-to-end clean verification, quality gates, and final report._
+
+- [ ] **Task 9.1**: Run full quality gate suite (`npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test:coverage`, `npm run build`).
+  - _DoD_: 0 errors, 0 warnings, branch coverage $\ge 90\%$ on domain logic.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 9.2**: Perform fresh-install smoke test in isolated directory.
+  - _DoD_: Verify `npm run setup`, database migration, and bot startup from compiled `dist/`.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 9.3**: Verify all 30 Acceptance Criteria (AC-01 through AC-30).
+  - _DoD_: Complete checklist filled with verification evidence.
+  - _Status_: `NOT STARTED`
+- [ ] **Task 9.4**: Compile Final Report for User.
+  - _DoD_: Clear summary of architecture, capabilities, tests, repository link, and launch instructions.
+  - _Status_: `NOT STARTED`
+
+---
+
+## 6. Acceptance Criteria Checklist (AC-01 to AC-30)
+
+| ID        | Criteria Description                                          |    Status     | Evidence          |
+| :-------- | :------------------------------------------------------------ | :-----------: | :---------------- |
+| **AC-01** | Admin starts bot in DM and gets full menu (`MainMenu`)        | `NOT STARTED` | Pending Phase 5   |
+| **AC-02** | Unauthorized user cannot access admin menu                    | `NOT STARTED` | Pending Phase 5   |
+| **AC-03** | Admin creates reminder for 14 days with 2 times per day       | `NOT STARTED` | Pending Phase 5   |
+| **AC-04** | Reminder is assigned to specific Telegram User ID             | `NOT STARTED` | Pending Phase 3/5 |
+| **AC-05** | Reminder delivered to pre-connected group with target mention | `NOT STARTED` | Pending Phase 5   |
+| **AC-06** | Reminder delivered to DM after user onboarding                | `NOT STARTED` | Pending Phase 5   |
+| **AC-07** | Group members see buttons but only target can act             | `NOT STARTED` | Pending Phase 3/5 |
+| **AC-08** | "Done" completes occurrence, saves history, stops repeats     | `NOT STARTED` | Pending Phase 3/5 |
+| **AC-09** | "Later" reschedules with correct progression (5m, 10m, ...)   | `NOT STARTED` | Pending Phase 3/5 |
+| **AC-10** | After "Later", old card retains "Done" and "Skip"             | `NOT STARTED` | Pending Phase 3/5 |
+| **AC-11** | When snooze reminder fires, old buttons are deactivated       | `NOT STARTED` | Pending Phase 4/5 |
+| **AC-12** | Unanswered message auto-repeats according to policy           | `NOT STARTED` | Pending Phase 4/5 |
+| **AC-13** | On auto-repeat, old action buttons become obsolete            | `NOT STARTED` | Pending Phase 4/5 |
+| **AC-14** | "Skip" marks occurrence SKIPPED, doesn't delete rule          | `NOT STARTED` | Pending Phase 3/5 |
+| **AC-15** | Exhausted repeats transition occurrence to MISSED             | `NOT STARTED` | Pending Phase 3/4 |
+| **AC-16** | Pending jobs restored and executed after restart              | `NOT STARTED` | Pending Phase 4   |
+| **AC-17** | Concurrent callbacks do not cause duplicate transitions       | `NOT STARTED` | Pending Phase 3/7 |
+| **AC-18** | Multiple recipients of same rule have independent status      | `NOT STARTED` | Pending Phase 3/4 |
+| **AC-19** | Admin can edit, pause, and resume schedules                   | `NOT STARTED` | Pending Phase 5   |
+| **AC-20** | History tracks completed, skipped, snoozed, missed            | `NOT STARTED` | Pending Phase 6   |
+| **AC-21** | All user and admin messages are localized (ru/en)             | `NOT STARTED` | Pending Phase 1/5 |
+| **AC-22** | Interactive setup creates working `.env` securely             | `NOT STARTED` | Pending Phase 1   |
+| **AC-23** | Clean install, migrations, and build work smoothly            | `NOT STARTED` | Pending Phase 1/2 |
+| **AC-24** | Oxlint, Prettier, TypeScript, Vitest pass cleanly             | `NOT STARTED` | Pending Phase 9   |
+| **AC-25** | English README matches real implementation & style            | `NOT STARTED` | Pending Phase 8   |
+| **AC-26** | GitHub repo created with CI, topics, description              | `NOT STARTED` | Pending Phase 8   |
+| **AC-27** | Admin menu replicates `donnmemes` UX 1:1                      | `NOT STARTED` | Pending Phase 5   |
+| **AC-28** | PLAN.md updated with test evidence & approvals                | `IN PROGRESS` | Initialized       |
+| **AC-29** | Zero stubs, zero fake tests, zero mock implementations        | `NOT STARTED` | Continuous        |
+| **AC-30** | Final result is fully runnable and production-ready           | `NOT STARTED` | Pending Phase 9   |
+
+---
+
+## 7. Known Risks & Mitigations
+
+1. **Risk**: Telegram rate limiting (429 Too Many Requests) during bulk notifications.
+   - _Mitigation_: Rate-limited outbound delivery queue with exponential backoff honoring Telegram's `retry_after` parameter.
+2. **Risk**: User without username in group reminders.
+   - _Mitigation_: Fallback to HTML/Markdown mention via User ID (`tg://user?id=123456789`) or first name fallback.
+3. **Risk**: Bot restart during multi-step reminder creation wizard.
+   - _Mitigation_: Store wizard draft state in SQLite (`app_settings` or dedicated draft entity) keyed by `admin_wizard_<userId>`.
+4. **Risk**: Old message buttons clicked after repeat or completion.
+   - _Mitigation_: Server-side state check at the beginning of callback query processing; answers callback with `"This reminder is already handled"` without altering state.
