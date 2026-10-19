@@ -87,6 +87,7 @@ async function runSmokeTest(): Promise<void> {
       id: targetGroupChatId,
       title: "Health Notify Supergroup",
       chatType: "supergroup",
+      addedByUserId: adminId,
     }),
   );
 
