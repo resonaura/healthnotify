@@ -56,7 +56,7 @@ export const envSchema = z.object({
   DATABASE_FILE: z.string().default(".data/healthnotify.sqlite"),
   DEFAULT_TIMEZONE: z
     .string()
-    .default("Europe/Moscow")
+    .default("America/Vancouver")
     .refine(isValidTimezone, { message: "Invalid IANA timezone" }),
   DEFAULT_LOCALE: z.enum(["ru", "en"]).default("ru"),
   SCHEDULER_INTERVAL_SECONDS: z.coerce.number().int().min(1).max(300).default(10),

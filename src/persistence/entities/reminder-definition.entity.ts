@@ -48,7 +48,7 @@ export class ReminderDefinition {
   @Column({ type: "text", nullable: true })
   daysOfWeekJson!: string | null;
 
-  @Column({ type: "varchar", length: 64, default: "Europe/Moscow" })
+  @Column({ type: "varchar", length: 64, default: "America/Vancouver" })
   timezone!: string;
 
   @Column({ type: "varchar", length: 10 })

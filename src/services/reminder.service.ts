@@ -52,7 +52,7 @@ export class ReminderService {
       scheduleType: input.scheduleType ?? "daily",
       timesOfDayJson: JSON.stringify(input.timesOfDay),
       daysOfWeekJson: input.daysOfWeek ? JSON.stringify(input.daysOfWeek) : null,
-      timezone: input.timezone ?? "Europe/Moscow",
+      timezone: input.timezone ?? "America/Vancouver",
       startDate: input.startDate,
       endDate: input.endDate ?? null,
       snoozeIntervalsJson: JSON.stringify(input.snoozeIntervals ?? [5, 10, 20, 40, 60]),

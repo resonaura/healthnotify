@@ -103,11 +103,11 @@ async function main(): Promise<void> {
 
   // 5. Timezone
   const timezoneChoices = [
-    { name: "Europe/Moscow (UTC+3)", value: "Europe/Moscow" },
+    { name: "America/Vancouver (Pacific Time, UTC-7 / UTC-8)", value: "America/Vancouver" },
     { name: "Europe/Kyiv (UTC+2 / UTC+3 DST)", value: "Europe/Kyiv" },
     { name: "UTC", value: "UTC" },
     { name: "America/New_York (Eastern)", value: "America/New_York" },
-    { name: "America/Vancouver (Pacific)", value: "America/Vancouver" },
+    { name: "Europe/Moscow (UTC+3)", value: "Europe/Moscow" },
     { name: "Asia/Almaty", value: "Asia/Almaty" },
     { name: "Other (custom input)", value: "custom" },
   ];
@@ -115,7 +115,7 @@ async function main(): Promise<void> {
   let selectedTimezone = await select({
     message: "Select default timezone for reminder schedules:",
     choices: timezoneChoices,
-    default: process.env.DEFAULT_TIMEZONE || "Europe/Moscow",
+    default: process.env.DEFAULT_TIMEZONE || "America/Vancouver",
   });
 
   if (selectedTimezone === "custom") {

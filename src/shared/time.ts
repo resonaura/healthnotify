@@ -1,4 +1,4 @@
-export function getTodayDateInZone(timeZone = "Europe/Moscow", now = new Date()): string {
+export function getTodayDateInZone(timeZone = "America/Vancouver", now = new Date()): string {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -53,7 +53,7 @@ export function localTimeToUtc(dateStr: string, timeStr: string, timeZone: strin
   return new Date(approxUtc - offsetMs);
 }
 
-export function formatTimeInZone(date: Date, timeZone = "Europe/Moscow"): string {
+export function formatTimeInZone(date: Date, timeZone = "America/Vancouver"): string {
   const formatter = new Intl.DateTimeFormat("ru-RU", {
     timeZone,
     hour: "2-digit",
@@ -62,7 +62,7 @@ export function formatTimeInZone(date: Date, timeZone = "Europe/Moscow"): string
   return formatter.format(date);
 }
 
-export function formatDateInZone(date: Date, timeZone = "Europe/Moscow"): string {
+export function formatDateInZone(date: Date, timeZone = "America/Vancouver"): string {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",

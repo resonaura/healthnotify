@@ -279,7 +279,7 @@ describe("Menu UI Unit Tests", () => {
       TG_ADMIN_USER_IDS: [359079621, 261171441],
       DEFAULT_GROUP_CHAT_ID: -1004301185075,
       DEFAULT_RECIPIENT_USER_ID: 915156343,
-      DEFAULT_TIMEZONE: "Europe/Moscow",
+      DEFAULT_TIMEZONE: "America/Vancouver",
       DATABASE_FILE: ":memory:",
       DEFAULT_LOCALE: "ru",
       SCHEDULER_INTERVAL_SECONDS: 10,
@@ -316,6 +316,6 @@ describe("Menu UI Unit Tests", () => {
     expect(mockContext.navigateTo).toHaveBeenCalledWith("MainMenu");
 
     await menu.onMessage(mockContext);
-    expect(replies[replies.length - 1]).toContain("Europe/Moscow");
+    expect(replies[replies.length - 1]).toContain("America/Vancouver");
   });
 });

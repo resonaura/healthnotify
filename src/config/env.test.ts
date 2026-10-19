@@ -7,7 +7,7 @@ describe("env configuration", () => {
     TG_ADMIN_USER_IDS: "359079621, 261171441",
     DEFAULT_GROUP_CHAT_ID: "4301185075",
     DEFAULT_RECIPIENT_USER_ID: "915156343",
-    DEFAULT_TIMEZONE: "Europe/Moscow",
+    DEFAULT_TIMEZONE: "America/Vancouver",
     DEFAULT_LOCALE: "ru",
   };
 
@@ -17,7 +17,7 @@ describe("env configuration", () => {
     expect(config.TG_ADMIN_USER_IDS).toEqual([359079621, 261171441]);
     expect(config.DEFAULT_GROUP_CHAT_ID).toBe(-1004301185075);
     expect(config.DEFAULT_RECIPIENT_USER_ID).toBe(915156343);
-    expect(config.DEFAULT_TIMEZONE).toBe("Europe/Moscow");
+    expect(config.DEFAULT_TIMEZONE).toBe("America/Vancouver");
     expect(config.DEFAULT_LOCALE).toBe("ru");
     expect(config.SCHEDULER_INTERVAL_SECONDS).toBe(10);
     expect(config.CATCH_UP_WINDOW_MINUTES).toBe(60);
