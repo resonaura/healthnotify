@@ -121,8 +121,7 @@ export class WizardMenu extends Menu {
       );
 
       if (!defaultUser && this.defaultRecipientId) {
-        defaultUser =
-          (await this.userRepo.findOneBy({ id: this.defaultRecipientId })) ?? undefined;
+        defaultUser = (await this.userRepo.findOneBy({ id: this.defaultRecipientId })) ?? undefined;
         if (!defaultUser && this.deliveryService) {
           const chats = await this.chatRepo.find({ where: { isActive: true }, take: 5 });
           let resolvedProfile: {
@@ -162,9 +161,7 @@ export class WizardMenu extends Menu {
       const userButtons: Button[] = [];
 
       userButtons.push(
-        new Button(t(ctx.lang, "btn_myself"), (act) =>
-          this.handleRecipient(act, [act.userId]),
-        ),
+        new Button(t(ctx.lang, "btn_myself"), (act) => this.handleRecipient(act, [act.userId])),
       );
 
       const otherUsers = allCandidates.filter((u) => u.id !== ctx.userId);
@@ -194,17 +191,15 @@ export class WizardMenu extends Menu {
               ? `@${singleOther.username}`
               : `ID: ${singleOther.id}`;
         rows.push([
-          new Button(
-            t(ctx.lang, "btn_both_recipient_and_me", { name: otherName }),
-            (act) => this.handleRecipient(act, [singleOther.id, act.userId]),
+          new Button(t(ctx.lang, "btn_both_recipient_and_me", { name: otherName }), (act) =>
+            this.handleRecipient(act, [singleOther.id, act.userId]),
           ),
         ]);
       } else if (otherUsers.length > 1) {
         const allTargetIds = Array.from(new Set([ctx.userId, ...otherUsers.map((u) => u.id)]));
         rows.push([
-          new Button(
-            t(ctx.lang, "btn_all_recipients", { count: allTargetIds.length }),
-            (act) => this.handleRecipient(act, allTargetIds),
+          new Button(t(ctx.lang, "btn_all_recipients", { count: allTargetIds.length }), (act) =>
+            this.handleRecipient(act, allTargetIds),
           ),
         ]);
       }
@@ -498,7 +493,8 @@ export class WizardMenu extends Menu {
       if (existing && existing.firstName && existing.firstName !== "Отец") return;
 
       const chats = await this.chatRepo.find({ where: { isActive: true }, take: 5 });
-      let resolved: { firstName: string; lastName: string | null; username: string | null } | null = null;
+      let resolved: { firstName: string; lastName: string | null; username: string | null } | null =
+        null;
       if (this.deliveryService) {
         for (const chat of chats) {
           resolved = await this.deliveryService.fetchUserProfile(userId, chat.id);

@@ -353,9 +353,11 @@ describe("Menu UI Unit Tests", () => {
     } as unknown as Repository<RegisteredChat>;
 
     const mockUserRepo = {
-      find: vi.fn().mockResolvedValue([
-        { id: 915156343, firstName: "Alex", lastName: "Smith", username: "alexsmith" },
-      ]),
+      find: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 915156343, firstName: "Alex", lastName: "Smith", username: "alexsmith" },
+        ]),
       findOneBy: vi.fn().mockResolvedValue({
         id: 915156343,
         firstName: "Alex",
