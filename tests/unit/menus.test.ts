@@ -180,10 +180,7 @@ describe("Menu UI Unit Tests", () => {
     );
 
     // Set Edit Times
-    store.set(
-      `reminder_edit_${mockContext.userId}`,
-      JSON.stringify({ id: 1, field: "times" }),
-    );
+    store.set(`reminder_edit_${mockContext.userId}`, JSON.stringify({ id: 1, field: "times" }));
     const handledTimes = await menu.handleTextInput(mockContext, "07:00, 21:00");
     expect(handledTimes).toBe(true);
     expect(mockReminderService.updateReminder).toHaveBeenCalledWith(
