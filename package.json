@@ -17,6 +17,7 @@
     "format:check": "prettier --check --no-error-on-unmatched-pattern \"src/**/*.{ts,js,json}\" \"scripts/**/*.{ts,js,json}\" \"tests/**/*.{ts,js,json}\" \"*.json\" \"*.md\" \"docs/**/*.md\"",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "migrate": "tsx scripts/migrate.ts",
     "db:migrate": "tsx scripts/migrate.ts"
   },
   "dependencies": {
